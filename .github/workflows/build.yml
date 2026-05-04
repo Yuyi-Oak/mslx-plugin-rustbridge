@@ -1,17 +1,19 @@
-name: Build RustBridge Plugin
+name: Build and Release RustBridge Plugin
 
 on:
   push:
     branches: [ master ]
-    tags: [ '*' ]
+    tags: [ 'v*', '*' ]
   pull_request:
-    branches: [ main ]
+    branches: [ master ]
   workflow_dispatch:
 
-jobs:
-  build:
-    runs-on: ubuntu-latest
+permissions:
+  contents: write
 
+jobs:
+  build-linux:
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -21,10 +23,8 @@ jobs:
 
       - name: Set up .NET
         uses: actions/setup-dotnet@v5
-        with:
-          dotnet-version: '10.0.x'
 
-      - name: Build Rust cdylib
+      - name: Build Rust cdylib (Linux)
         working-directory: rust
         run: |
           cargo clean
@@ -36,48 +36,114 @@ jobs:
           dotnet clean
           dotnet build -c Release
 
-      - name: Prepare Rust artifact
+      - name: Package Linux artifacts
         run: |
-          mkdir -p artifacts/rust
-          cp rust/target/release/libmslx_plugin_rustbridge.so artifacts/rust/
+          set -euxo pipefail
+          mkdir -p artifacts/rust artifacts/dotnet
+          RUST_LIB=$(ls rust/target/release/libmslx_plugin_rust*.so 2>/dev/null || true)
+          if [ -z "$RUST_LIB" ]; then
+            echo "Rust library not found in rust/target/release. Listing for debug:"
+            ls -la rust/target/release || true
+            exit 1
+          fi
+          echo "Found Rust lib: $RUST_LIB"
+          cp "$RUST_LIB" artifacts/rust/
+          DOTNET_DLL=$(ls csharp/bin/Release/net*/MSLX.Plugin.RustBridge.dll 2>/dev/null || true)
+          if [ -z "$DOTNET_DLL" ]; then
+            echo "Dotnet DLL not found in csharp/bin/Release. Listing for debug:"
+            ls -la csharp/bin/Release || true
+            exit 1
+          fi
+          echo "Found Dotnet dll: $DOTNET_DLL"
+          cp "$DOTNET_DLL" artifacts/dotnet/
+          tar -C artifacts/rust -czf artifacts/rust-linux.tar.gz .
+          (cd artifacts/dotnet && zip -r ../dotnet.zip .)
 
-      - name: Prepare Dotnet artifact
-        run: |
-          mkdir -p artifacts/dotnet
-          cp csharp/bin/Release/net10.0/MSLX.Plugin.RustBridge.dll artifacts/dotnet/
-
-      - name: Upload Rust artifact
+      - name: Upload Rust (Linux) artifact
         uses: actions/upload-artifact@v7
         with:
-          name: rust-cdylib
-          path: artifacts/rust/libmslx_plugin_rustbridge.so
+          name: rust-cdylib-linux
+          path: artifacts/rust-linux.tar.gz
 
       - name: Upload Dotnet artifact
         uses: actions/upload-artifact@v7
         with:
           name: dotnet-plugin
-          path: artifacts/dotnet/MSLX.Plugin.RustBridge.dll
+          path: artifacts/dotnet.zip
+
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Set up Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+
+      - name: Build Rust cdylib (Windows)
+        working-directory: rust
+        run: |
+          cargo clean
+          cargo build --release
+        shell: pwsh
+
+      - name: Package Windows artifact (DLL)
+        run: |
+          $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Path artifacts\windows -Force | Out-Null
+          $dll = Get-ChildItem -Path rust\target\release\mslx_plugin_rustbridge*.dll -File -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $dll) {
+            Write-Host "Windows DLL not found in rust\target\release. Listing for debug:"
+            Get-ChildItem -Path rust\target\release -Force | Format-List
+            exit 1
+          }
+          Write-Host "Found DLL: $($dll.FullName)"
+          Copy-Item -Path $dll.FullName -Destination artifacts\windows\
+          Compress-Archive -Path artifacts\windows\* -DestinationPath artifacts\windows.zip -Force
+        shell: pwsh
+
+      - name: Upload Rust (Windows) artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: rust-cdylib-windows
+          path: artifacts/windows.zip
 
   release:
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
-    needs: build
+    needs: [build-linux, build-windows]
     runs-on: ubuntu-latest
     steps:
-      - name: Download Rust artifact
+      - name: Download Rust (Linux) artifact
         uses: actions/download-artifact@v4
         with:
-          name: rust-cdylib
+          name: rust-cdylib-linux
+          path: release_artifacts
+
+      - name: Download Rust (Windows) artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: rust-cdylib-windows
           path: release_artifacts
 
       - name: Download Dotnet artifact
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v4
         with:
           name: dotnet-plugin
           path: release_artifacts
 
-      - name: Publish Release
-        uses: softprops/action-gh-release@v3
+      - name: List release artifacts
+        run: |
+          ls -la release_artifacts || true
+          tar -tzf release_artifacts/rust-linux.tar.gz || true
+          unzip -l release_artifacts/windows.zip || true
+        shell: bash
+
+      - name: Publish Release assets
+        uses: softprops/action-gh-release@v2
         with:
           files: |
-            release_artifacts/libmslx_plugin_rust.so
-            release_artifacts/MSLX.Plugin.RustBridge.dll
+            release_artifacts/rust-linux.tar.gz
+            release_artifacts/windows.zip
+            release_artifacts/dotnet.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
