@@ -1,0 +1,50 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <OutputType>Library</OutputType>
+    <AssemblyName>MSLX.Plugin.RustBridge</AssemblyName>
+    <RootNamespace>MSLX.Plugin.RustBridge</RootNamespace>
+    <GenerateDependencyFile>false</GenerateDependencyFile>
+    <DebugType>none</DebugType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="ILRepack.Lib.MSBuild.Task" Version="2.0.44.2">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="Newtonsoft.Json" Version="13.*" />
+    <PackageReference Include="MSLX.SDK" Version="1.4.*" ExcludeAssets="runtime" />
+  </ItemGroup>
+
+  <Target Name="CopyRustLib" AfterTargets="Build">
+    <PropertyGroup>
+      <RustTarget Condition="$([MSBuild]::IsOSPlatform('Linux'))">../rust/target/release/libmslx_plugin_rust.so</RustTarget>
+      <RustTarget Condition="$([MSBuild]::IsOSPlatform('Windows'))">../rust/target/release/mslx_plugin_rust.dll</RustTarget>
+      <RustTarget Condition="$([MSBuild]::IsOSPlatform('OSX'))">../rust/target/release/libmslx_plugin_rust.dylib</RustTarget>
+    </PropertyGroup>
+    <Copy SourceFiles="$(RustTarget)"
+          DestinationFolder="$(OutDir)"
+          SkipUnchangedFiles="true"
+          Condition="Exists('$(RustTarget)')" />
+  </Target>
+
+  <Target Name="MergeDependencies" AfterTargets="Build" Condition="'$(Configuration)' == 'Release'">
+    <ItemGroup>
+      <AllDlls Include="$(OutputPath)*.dll" />
+      <DependenciesToMerge Include="@(AllDlls)" Exclude="$(OutputPath)$(AssemblyName).dll" />
+      <FinalInputAssemblies Include="@(DependenciesToMerge)" />
+      <FinalInputAssemblies Include="$(OutputPath)$(AssemblyName).dll" />
+    </ItemGroup>
+    <ILRepack Condition="'@(DependenciesToMerge)' != ''"
+              Parallel="true" Internalize="true"
+              InputAssemblies="@(FinalInputAssemblies)"
+              TargetKind="SameAsPrimaryAssembly"
+              OutputFile="$(OutputPath)$(AssemblyName).dll"
+              LibraryPath="$(OutputPath)" />
+    <Delete Files="@(DependenciesToMerge)" Condition="'@(DependenciesToMerge)' != ''" />
+  </Target>
+</Project>

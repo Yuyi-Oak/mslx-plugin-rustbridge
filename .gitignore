@@ -1,0 +1,5 @@
+rust/target
+rust/Cargo.lock
+csharp/obj
+csharp/bin
+
