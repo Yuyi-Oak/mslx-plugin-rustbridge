@@ -6,7 +6,7 @@ ROOT="$(cd "$(dirname "$0")" && pwd)"
 echo "==> [1/2] Building Rust cdylib..."
 cd "$ROOT/rust"
 cargo clean && cargo build --release
-echo "    Done: target/release/libmslx_plugin_rust.so"
+echo "    Done: target/release/libmslx_plugin_rustbridge.so"
 
 echo "==> [2/2] Building C# plugin..."
 cd "$ROOT/csharp"

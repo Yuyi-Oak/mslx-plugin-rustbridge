@@ -8,7 +8,7 @@ cd /d "%ROOT%rust"
 cargo clean
 cargo build --release
 if errorlevel 1 goto :err
-echo     Done: target\release\mslx_plugin_rust.dll
+echo     Done: target\release\mslx_plugin_rustbridge.dll
 
 echo =^> [2/2] Building C# plugin...
 cd /d "%ROOT%csharp"
