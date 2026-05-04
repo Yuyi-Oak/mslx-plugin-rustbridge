@@ -14,15 +14,13 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up Rust
-        uses: actions/setup-rust@v1
-        with:
-          rust-version: stable
+        uses: actions-rust-lang/setup-rust-toolchain@v1
 
       - name: Set up .NET
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v5
         with:
           dotnet-version: '10.0.x'
 
@@ -49,13 +47,13 @@ jobs:
           cp csharp/bin/Release/net10.0/MSLX.Plugin.RustBridge.dll artifacts/dotnet/
 
       - name: Upload Rust artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: rust-cdylib
           path: artifacts/rust/libmslx_plugin_rust.so
 
       - name: Upload Dotnet artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: dotnet-plugin
           path: artifacts/dotnet/MSLX.Plugin.RustBridge.dll
@@ -72,13 +70,13 @@ jobs:
           path: release_artifacts
 
       - name: Download Dotnet artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: dotnet-plugin
           path: release_artifacts
 
       - name: Publish Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: |
             release_artifacts/libmslx_plugin_rust.so
