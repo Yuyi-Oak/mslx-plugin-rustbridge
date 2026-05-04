@@ -39,7 +39,7 @@ jobs:
       - name: Prepare Rust artifact
         run: |
           mkdir -p artifacts/rust
-          cp rust/target/release/libmslx_plugin_rust.so artifacts/rust/
+          cp rust/target/release/libmslx_plugin_rustbridge.so artifacts/rust/
 
       - name: Prepare Dotnet artifact
         run: |
@@ -50,7 +50,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: rust-cdylib
-          path: artifacts/rust/libmslx_plugin_rust.so
+          path: artifacts/rust/libmslx_plugin_rustbridge.so
 
       - name: Upload Dotnet artifact
         uses: actions/upload-artifact@v7
