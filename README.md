@@ -10,7 +10,7 @@ RustPluginEntry  ── IPlugin 实现，生命周期桥接
 RustBridgeController  ── catch-all Controller，转发所有 HTTP 请求
     │  P/Invoke (FFI)
     ▼
-libmslx_plugin_rust.so / .dll
+libmslx_plugin_rustbridge.so / .dll
     ├── plugin_init          ← 接收 Logger + SdkCall 函数指针
     ├── plugin_handle_request ← 接收请求 JSON，返回响应 JSON
     ├── plugin_free_response  ← 释放 Rust 分配的内存
@@ -20,7 +20,7 @@ libmslx_plugin_rust.so / .dll
 ## 目录结构
 
 ```
-mslx-rust-bridge/
+mslx-plugin-rustbridge/
 ├── rust/
 │   ├── Cargo.toml
 │   └── src/
@@ -104,7 +104,7 @@ build.bat
 
 把 `csharp/bin/Release/net10.0/` 下的所有文件复制到 MSLX 插件目录：
 - `MSLX.Plugin.RustBridge.dll`
-- `libmslx_plugin_rust.so` (Linux) 或 `mslx_plugin_rust.dll` (Windows)
+- `libmslx_plugin_rustbridge.so` (Linux) 或 `mslx_plugin_rustbridge.dll` (Windows)
 
 ## 请求/响应格式
 
