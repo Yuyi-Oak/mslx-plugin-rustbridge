@@ -30,15 +30,21 @@ pub extern "C" fn plugin_init(
         return -1;
     }
 
-    sdk().info("RustBridge plugin initialized.");
-    router::init(sdk());
+    let Some(sdk) = SDK.get() else {
+        return -2;
+    };
+
+    sdk.info("RustBridge plugin initialized.");
+    router::init(sdk);
 
     0
 }
 
 #[unsafe(no_mangle)]
 pub extern "C" fn plugin_unload() {
-    sdk().info("Rust plugin unloading.");
+    if let Some(sdk) = SDK.get() {
+        sdk.info("Rust plugin unloading.");
+    }
     router::shutdown();
 }
 
@@ -48,6 +54,10 @@ pub extern "C" fn plugin_handle_request(
     response_ptr: *mut *mut u8,
     response_len: *mut usize,
 ) -> i32 {
+    let Some(sdk) = SDK.get() else {
+        return -4;
+    };
+
     let json_str = match unsafe { CStr::from_ptr(request_json) }.to_str() {
         Ok(s) => s,
         Err(_) => return -1,
@@ -56,17 +66,17 @@ pub extern "C" fn plugin_handle_request(
     let request: PluginRequest = match serde_json::from_str(json_str) {
         Ok(r) => r,
         Err(e) => {
-            sdk().error(&format!("Failed to parse request JSON: {e}"));
+            sdk.error(&format!("Failed to parse request JSON: {e}"));
             return -2;
         }
     };
 
-    let response = router::dispatch(request, sdk());
+    let response = router::dispatch(request, sdk);
 
     let response_json = match serde_json::to_string(&response) {
         Ok(s) => s,
         Err(e) => {
-            sdk().error(&format!("Failed to serialize response: {e}"));
+            sdk.error(&format!("Failed to serialize response: {e}"));
             return -3;
         }
     };
@@ -89,8 +99,4 @@ pub extern "C" fn plugin_free_response(ptr: *mut u8, len: usize) {
     unsafe {
         drop(Box::from_raw(std::slice::from_raw_parts_mut(ptr, len)));
     }
-}
-
-pub fn sdk() -> &'static sdk::SdkBridge {
-    SDK.get().expect("SDK not initialized — plugin_init must be called first")
 }

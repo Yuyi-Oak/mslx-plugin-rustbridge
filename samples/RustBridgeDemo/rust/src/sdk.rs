@@ -2,6 +2,7 @@ use std::ffi::{CStr, CString, c_char};
 use serde_json::{json, Value};
 use crate::{LogFn, LogErrFn, SdkCallFn};
 
+#[allow(dead_code)]
 pub struct SdkBridge {
     log_info:    LogFn,
     log_warn:    LogFn,
@@ -14,6 +15,7 @@ pub struct SdkBridge {
 unsafe impl Send for SdkBridge {}
 unsafe impl Sync for SdkBridge {}
 
+#[allow(dead_code)]
 impl SdkBridge {
     pub fn new(
         log_info: LogFn, log_warn: LogFn, log_error: LogFn,

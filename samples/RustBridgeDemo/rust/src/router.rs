@@ -2,13 +2,7 @@ use crate::bridge::{PluginRequest, PluginResponse};
 use crate::sdk::SdkBridge;
 use serde_json::json;
 
-/// 插件初始化时调用（可用于启动后台任务、建立连接等）
-pub fn init(_sdk: &'static SdkBridge) {
-    // 此处暂不启用
-    // 示例：读取 appdata 路径
-    // let path = sdk.get_appdata_path().unwrap_or_default();
-    // sdk.info(&format!("AppData path: {path}"));
-}
+pub fn init(_sdk: &'static SdkBridge) {}
 
 pub fn shutdown() {}
 
@@ -19,13 +13,7 @@ pub fn dispatch(req: PluginRequest, sdk: &SdkBridge) -> PluginResponse {
 
         ("GET", "/servers") => handle_servers_get(&req, sdk),
 
-        ("GET", path) if path.starts_with("/servers/") => {
-            let id_str = &path["/servers/".len()..];
-            match id_str.parse::<u32>() {
-                Ok(id) => handle_server_get(&req, id, sdk),
-                Err(_) => PluginResponse::bad_request("Invalid server id"),
-            }
-        }
+        ("GET", path) if path.starts_with("/servers/") => handle_server_path(&req, path, sdk),
 
         ("POST", "/echo") => handle_echo(&req),
 
@@ -36,7 +24,7 @@ pub fn dispatch(req: PluginRequest, sdk: &SdkBridge) -> PluginResponse {
 fn handle_demo_get(_req: &PluginRequest, sdk: &SdkBridge) -> PluginResponse {
     sdk.debug("handle_demo_get called");
     PluginResponse::ok(json!({
-        "plugin": "mslx-plugin-rustbridge",
+        "plugin": "mslx-plugin-rustbridge-demo",
         "message": "Hello from RustBridge!",
     }))
 }
@@ -49,6 +37,17 @@ fn handle_servers_get(_req: &PluginRequest, sdk: &SdkBridge) -> PluginResponse {
             PluginResponse::internal_error(&e)
         }
     }
+}
+
+fn handle_server_path(req: &PluginRequest, path: &str, sdk: &SdkBridge) -> PluginResponse {
+    match parse_server_id(path) {
+        Ok(id) => handle_server_get(req, id, sdk),
+        Err(_) => PluginResponse::bad_request("Invalid server id"),
+    }
+}
+
+fn parse_server_id(path: &str) -> Result<u32, std::num::ParseIntError> {
+    path["/servers/".len()..].parse::<u32>()
 }
 
 fn handle_server_get(_req: &PluginRequest, id: u32, sdk: &SdkBridge) -> PluginResponse {

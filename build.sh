@@ -2,18 +2,24 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
+CONFIGURATION="${CONFIGURATION:-Release}"
+SKIP_CLEAN="${SKIP_CLEAN:-0}"
 
-echo "==> [1/2] Building Rust cdylib..."
-cd "$ROOT/rust"
-cargo clean && cargo build --release
-echo "    Done: target/release/libmslx_plugin_rustbridge.so"
+if [ "$SKIP_CLEAN" != "1" ]; then
+  echo "==> Cleaning solution and sample Rust target..."
+  dotnet clean "$ROOT/mslx-plugin-rustbridge.sln" -c "$CONFIGURATION"
+  (cd "$ROOT/samples/RustBridgeDemo/rust" && cargo clean)
+fi
 
-echo "==> [2/2] Building C# plugin..."
-cd "$ROOT/csharp"
-dotnet clean && dotnet build -c Release
-echo "    Done: bin/Release/net10.0/MSLX.Plugin.RustBridge.dll"
+echo "==> [1/2] Packing RustBridge library..."
+dotnet pack "$ROOT/csharp/MSLX.Plugin.RustBridge.csproj" -c "$CONFIGURATION" "$@"
+echo "    Done: csharp/bin/$CONFIGURATION/MSLX.Plugin.RustBridge.*.nupkg"
+
+echo "==> [2/2] Building RustBridge demo plugin..."
+dotnet build "$ROOT/samples/RustBridgeDemo/MSLX.Plugin.RustBridge.Demo.csproj" -c "$CONFIGURATION" "$@"
+echo "    Done: samples/RustBridgeDemo/bin/$CONFIGURATION/net10.0/MSLX.Plugin.RustBridge.Demo.dll"
 
 echo ""
-echo "✅ Build complete."
-echo "   Deploy contents of: $ROOT/csharp/bin/Release/net10.0/"
-echo "   (Contains both the C# dll and the Rust .so)"
+echo "Build complete."
+echo "   Library package: $ROOT/csharp/bin/$CONFIGURATION/"
+echo "   Demo deploy dir: $ROOT/samples/RustBridgeDemo/bin/$CONFIGURATION/net10.0/"

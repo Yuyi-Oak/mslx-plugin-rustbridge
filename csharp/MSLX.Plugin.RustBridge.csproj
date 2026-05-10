@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk.Web">
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
@@ -9,42 +9,26 @@
     <RootNamespace>MSLX.Plugin.RustBridge</RootNamespace>
     <GenerateDependencyFile>false</GenerateDependencyFile>
     <DebugType>none</DebugType>
+    <IsPackable>true</IsPackable>
+    <PackageId>MSLX.Plugin.RustBridge</PackageId>
+    <Version>1.0.0</Version>
+    <Authors>Yuyi-Oak</Authors>
+    <Company>MSLTeam</Company>
+    <Description>MSLX plugin bridge library for forwarding plugin lifecycle and HTTP requests to Rust cdylibs.</Description>
+    <PackageTags>MSLX;Plugin;Rust;Bridge</PackageTags>
+    <RepositoryUrl>https://github.com/Yuyi-Oak/mslx-plugin-rustbridge</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="ILRepack.Lib.MSBuild.Task" Version="2.0.44.2">
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-      <PrivateAssets>all</PrivateAssets>
-    </PackageReference>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <PackageReference Include="Newtonsoft.Json" Version="13.*" />
     <PackageReference Include="MSLX.SDK" Version="1.4.0" />
   </ItemGroup>
 
-  <Target Name="CopyRustLib" AfterTargets="Build">
-    <PropertyGroup>
-      <RustTarget Condition="$([MSBuild]::IsOSPlatform('Linux'))">../rust/target/release/libmslx_plugin_rust.so</RustTarget>
-      <RustTarget Condition="$([MSBuild]::IsOSPlatform('Windows'))">../rust/target/release/mslx_plugin_rust.dll</RustTarget>
-      <RustTarget Condition="$([MSBuild]::IsOSPlatform('OSX'))">../rust/target/release/libmslx_plugin_rust.dylib</RustTarget>
-    </PropertyGroup>
-    <Copy SourceFiles="$(RustTarget)"
-          DestinationFolder="$(OutDir)"
-          SkipUnchangedFiles="true"
-          Condition="Exists('$(RustTarget)')" />
-  </Target>
-
-  <Target Name="MergeDependencies" AfterTargets="Build" Condition="'$(Configuration)' == 'Release'">
-    <ItemGroup>
-      <AllDlls Include="$(OutputPath)*.dll" />
-      <DependenciesToMerge Include="@(AllDlls)" Exclude="$(OutputPath)$(AssemblyName).dll" />
-      <FinalInputAssemblies Include="@(DependenciesToMerge)" />
-      <FinalInputAssemblies Include="$(OutputPath)$(AssemblyName).dll" />
-    </ItemGroup>
-    <ILRepack Condition="'@(DependenciesToMerge)' != ''"
-              Parallel="true" Internalize="true"
-              InputAssemblies="@(FinalInputAssemblies)"
-              TargetKind="SameAsPrimaryAssembly"
-              OutputFile="$(OutputPath)$(AssemblyName).dll"
-              LibraryPath="$(OutputPath)" />
-    <Delete Files="@(DependenciesToMerge)" Condition="'@(DependenciesToMerge)' != ''" />
-  </Target>
+  <ItemGroup>
+    <None Include="../README.md" Pack="true" PackagePath="/" />
+  </ItemGroup>
 </Project>
