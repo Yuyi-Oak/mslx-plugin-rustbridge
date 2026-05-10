@@ -10,6 +10,7 @@
     <GenerateDependencyFile>false</GenerateDependencyFile>
     <DebugType>none</DebugType>
     <RustLibName>mslx_plugin_rustbridge</RustLibName>
+    <ILRepackTargetsFile>$(MSBuildProjectDirectory)/ILRepack.targets</ILRepackTargetsFile>
   </PropertyGroup>
 
   <ItemGroup>
