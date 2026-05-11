@@ -148,6 +148,18 @@ jobs:
       - name: List release artifacts
         run: find release_artifacts -maxdepth 3 -type f -print | sort
 
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Publish NuGet package
+        run: |
+          dotnet nuget push "release_artifacts/rustbridge-nuget/*.nupkg" \
+            --api-key "${{ secrets.NUGET_API_KEY }}" \
+            --source "https://api.nuget.org/v3/index.json" \
+            --skip-duplicate
+
       - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
