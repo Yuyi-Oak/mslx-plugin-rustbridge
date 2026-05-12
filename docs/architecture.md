@@ -127,7 +127,7 @@ Rust sdk.config_servers_get_list()
 RustBridge 类库产物：
 
 ```text
-MSLX.Plugin.RustBridge.1.1.0.nupkg
+MSLX.Plugin.RustBridge.1.1.1.nupkg
 ```
 
 示例插件产物：

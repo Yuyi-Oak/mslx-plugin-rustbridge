@@ -75,7 +75,7 @@ build.bat
 构建完成后会得到两类产物：
 
 ```text
-csharp/bin/Release/MSLX.Plugin.RustBridge.1.1.0.nupkg
+csharp/bin/Release/MSLX.Plugin.RustBridge.1.1.1.nupkg
 samples/RustBridgeDemo/bin/Release/net10.0/MSLX.Plugin.RustBridge.Demo.dll
 ```
 
@@ -135,7 +135,7 @@ public sealed class MyPluginEntry : RustPluginBase
 
     public override string Id => "mslx-plugin-my-plugin";
     public override string Name => "My Plugin";
-    public override string Version => "1.1.0";
+    public override string Version => "1.1.1";
 
     protected override string RustLibraryName => "my_plugin_native";
 }

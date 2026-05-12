@@ -17,7 +17,7 @@ public abstract class RustPluginBase : SDK.IPlugin, IDisposable
     public virtual string Name => "MSLX RustBridge Plugin";
     public virtual string Description => "由 Rust 实现的 MSLX Plugin";
     public virtual string Icon => "https://www.mslmc.cn/logo.png";
-    public virtual string Version => "1.1.0";
+    public virtual string Version => "1.1.1";
     public virtual string MinSDKVersion => "1.4.0";
     public virtual string Developer => "Yuyi-Oak";
     public virtual string AuthorUrl => "https://github.com/Yuyi-Oak";

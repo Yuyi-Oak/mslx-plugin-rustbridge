@@ -131,10 +131,56 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+  package-macos:
+    name: Package macOS demo
+    runs-on: macos-15-intel
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Set up Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: stable
+
+      - name: Restore .NET projects
+        run: dotnet restore mslx-plugin-rustbridge.sln
+
+      - name: Build demo plugin
+        run: dotnet build samples/RustBridgeDemo/MSLX.Plugin.RustBridge.Demo.csproj -c "$CONFIGURATION" --no-restore
+
+      - name: Verify macOS outputs
+        run: |
+          set -euo pipefail
+          test -f samples/RustBridgeDemo/bin/$CONFIGURATION/net10.0/MSLX.Plugin.RustBridge.Demo.dll
+          grep -a -q "RustBridge.Native.osx-x64.libmslx_plugin_rustbridge.dylib" \
+            samples/RustBridgeDemo/bin/$CONFIGURATION/net10.0/MSLX.Plugin.RustBridge.Demo.dll
+
+      - name: Package macOS artifacts
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/demo-macos
+          cp samples/RustBridgeDemo/bin/$CONFIGURATION/net10.0/MSLX.Plugin.RustBridge.Demo.dll artifacts/demo-macos/
+          tar -C artifacts/demo-macos -czf artifacts/rustbridge-demo-macos.tar.gz .
+
+      - name: Upload macOS demo package
+        uses: actions/upload-artifact@v7
+        with:
+          name: rustbridge-demo-macos
+          path: artifacts/rustbridge-demo-macos.tar.gz
+          if-no-files-found: error
+          retention-days: 14
+
   release:
     name: Publish GitHub release
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
-    needs: [ package-linux, package-windows ]
+    needs: [ package-linux, package-windows, package-macos ]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -166,4 +212,5 @@ jobs:
           files: |
             release_artifacts/rustbridge-nuget/*.nupkg
             release_artifacts/rustbridge-demo-linux/rustbridge-demo-linux.tar.gz
+            release_artifacts/rustbridge-demo-macos/rustbridge-demo-macos.tar.gz
             release_artifacts/rustbridge-demo-windows/rustbridge-demo-windows.zip

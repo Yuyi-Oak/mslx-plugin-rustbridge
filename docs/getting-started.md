@@ -41,7 +41,7 @@ samples/RustBridgeDemo/
 ```csharp
 public override string Id => "mslx-plugin-my-plugin";
 public override string Name => "My Plugin";
-public override string Version => "1.1.0";
+public override string Version => "1.1.1";
 ```
 
 插件 ID 建议符合 MSLX 约定：
@@ -146,10 +146,10 @@ dotnet nuget add source ./csharp/bin/Release -n rustbridge-local
 然后在你的插件工程中添加：
 
 ```xml
-<PackageReference Include="MSLX.Plugin.RustBridge" Version="1.1.0" />
+<PackageReference Include="MSLX.Plugin.RustBridge" Version="1.1.1" />
 ```
 
-从 `1.1.0` 开始，NuGet 包会默认导入构建规则。只要插件工程下有 `rust/Cargo.toml`，构建插件时会自动执行 `cargo build --release`，并把当前平台的原生库内嵌到插件 DLL。
+从 `1.1.1` 开始，NuGet 包会默认导入构建规则。只要插件工程下有 `rust/Cargo.toml`，构建插件时会自动执行 `cargo build --release`，并把当前平台的原生库内嵌到插件 DLL。
 
 常用配置：
 
@@ -190,7 +190,7 @@ public sealed class MyPluginEntry : RustPluginBase
 
     public override string Id => "mslx-plugin-my-plugin";
     public override string Name => "My Plugin";
-    public override string Version => "1.1.0";
+    public override string Version => "1.1.1";
     public override string Developer => "Your Name";
 
     protected override string RustLibraryName => "my_plugin_native";
@@ -241,7 +241,7 @@ Rust 收到：
 ```toml
 [package]
 name = "my-plugin-native"
-version = "1.1.0"
+version = "1.1.1"
 edition = "2024"
 
 [lib]

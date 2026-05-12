@@ -44,7 +44,7 @@ public override string Id => "mslx-plugin-my-plugin";
 ```csharp
 public override string Name => "My Plugin";
 public override string Description => "插件说明";
-public override string Version => "1.1.0";
+public override string Version => "1.1.1";
 public override string Developer => "Your Name";
 public override string AuthorUrl => "https://example.com";
 public override string PluginUrl => "https://github.com/example/my-plugin";
