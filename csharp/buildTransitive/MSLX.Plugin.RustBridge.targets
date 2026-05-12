@@ -1,0 +1,50 @@
+<Project>
+  <PropertyGroup>
+    <RustBridgeEmbedNativeLibrary Condition="'$(RustBridgeEmbedNativeLibrary)' == ''">true</RustBridgeEmbedNativeLibrary>
+    <RustBridgeBuildRust Condition="'$(RustBridgeBuildRust)' == ''">true</RustBridgeBuildRust>
+    <RustBridgeRustProjectDir Condition="'$(RustBridgeRustProjectDir)' == ''">$(MSBuildProjectDirectory)/rust</RustBridgeRustProjectDir>
+    <RustBridgeRustLibName Condition="'$(RustBridgeRustLibName)' == '' and '$(RustLibName)' != ''">$(RustLibName)</RustBridgeRustLibName>
+    <RustBridgeRustLibName Condition="'$(RustBridgeRustLibName)' == ''">mslx_plugin_rustbridge</RustBridgeRustLibName>
+    <RustBridgeCargoProfile Condition="'$(RustBridgeCargoProfile)' == ''">release</RustBridgeCargoProfile>
+    <RustBridgeCargoBuildArgs Condition="'$(RustBridgeCargoBuildArgs)' == '' and '$(RustBridgeCargoProfile)' == 'release'">--release</RustBridgeCargoBuildArgs>
+    <RustBridgeCargoBuildArgs Condition="'$(RustBridgeCargoBuildArgs)' == ''"></RustBridgeCargoBuildArgs>
+    <RustBridgeRustBuildCommand Condition="'$(RustBridgeRustBuildCommand)' == ''">cargo build $(RustBridgeCargoBuildArgs)</RustBridgeRustBuildCommand>
+    <RustBridgeRuntimeIdentifier Condition="'$(RustBridgeRuntimeIdentifier)' == '' and '$(RuntimeIdentifier)' != ''">$(RuntimeIdentifier)</RustBridgeRuntimeIdentifier>
+    <RustBridgeRuntimeIdentifier Condition="'$(RustBridgeRuntimeIdentifier)' == '' and $([MSBuild]::IsOSPlatform('Windows'))">win-x64</RustBridgeRuntimeIdentifier>
+    <RustBridgeRuntimeIdentifier Condition="'$(RustBridgeRuntimeIdentifier)' == '' and $([MSBuild]::IsOSPlatform('Linux'))">linux-x64</RustBridgeRuntimeIdentifier>
+    <RustBridgeRuntimeIdentifier Condition="'$(RustBridgeRuntimeIdentifier)' == '' and $([MSBuild]::IsOSPlatform('OSX'))">osx-x64</RustBridgeRuntimeIdentifier>
+    <RustBridgeNativeFileName Condition="'$(RustBridgeNativeFileName)' == '' and $([System.String]::Copy('$(RustBridgeRuntimeIdentifier)').StartsWith('win'))">$(RustBridgeRustLibName).dll</RustBridgeNativeFileName>
+    <RustBridgeNativeFileName Condition="'$(RustBridgeNativeFileName)' == '' and $([System.String]::Copy('$(RustBridgeRuntimeIdentifier)').StartsWith('osx'))">lib$(RustBridgeRustLibName).dylib</RustBridgeNativeFileName>
+    <RustBridgeNativeFileName Condition="'$(RustBridgeNativeFileName)' == ''">lib$(RustBridgeRustLibName).so</RustBridgeNativeFileName>
+    <RustBridgeNativePath Condition="'$(RustBridgeNativePath)' == ''">$(RustBridgeRustProjectDir)/target/$(RustBridgeCargoProfile)/$(RustBridgeNativeFileName)</RustBridgeNativePath>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(RustBridgeEmbedNativeLibrary)' == 'true' and Exists('$(RustBridgeRustProjectDir)/Cargo.toml')">
+    <Content Remove="$(RustBridgeRustProjectDir)/**" />
+    <None Remove="$(RustBridgeRustProjectDir)/**" />
+    <None Include="$(RustBridgeRustProjectDir)/**" Exclude="$(RustBridgeRustProjectDir)/target/**">
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </None>
+    <EmbeddedResource Include="$(RustBridgeNativePath)" Condition="'$(RustBridgeNativeFileName)' != ''">
+      <LogicalName>RustBridge.Native.$(RustBridgeRuntimeIdentifier).$(RustBridgeNativeFileName)</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
+
+  <Target Name="RustBridgeBuildRustNative"
+          BeforeTargets="RustBridgePrepareNativeResource"
+          Condition="'$(RustBridgeEmbedNativeLibrary)' == 'true' and '$(RustBridgeBuildRust)' == 'true' and Exists('$(RustBridgeRustProjectDir)/Cargo.toml')">
+    <Exec WorkingDirectory="$(RustBridgeRustProjectDir)"
+          Command="$(RustBridgeRustBuildCommand)" />
+  </Target>
+
+  <Target Name="RustBridgePrepareNativeResource"
+          BeforeTargets="PrepareResourceNames"
+          Condition="'$(RustBridgeEmbedNativeLibrary)' == 'true' and Exists('$(RustBridgeRustProjectDir)/Cargo.toml')">
+    <Error Condition="'$(RustBridgeRuntimeIdentifier)' == ''"
+           Text="RustBridgeRuntimeIdentifier could not be resolved." />
+    <Error Condition="'$(RustBridgeNativeFileName)' == ''"
+           Text="Unsupported platform for RustBridge native library embedding." />
+    <Error Condition="!Exists('$(RustBridgeNativePath)')"
+           Text="RustBridge native library was not found: $(RustBridgeNativePath)" />
+  </Target>
+</Project>

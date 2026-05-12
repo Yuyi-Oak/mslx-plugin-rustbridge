@@ -4,7 +4,7 @@
 
 ## 先理解两个产物
 
-使用 RustBridge 后，一个可部署插件通常至少有两个文件：
+使用 RustBridge 后，一个插件通常由两部分组成：
 
 ```text
 My.Plugin.dll
@@ -19,6 +19,8 @@ my_plugin_native.dll
 ```
 
 `My.Plugin.dll` 是 MSLX 能识别的 C# 插件。`my_plugin_native` 是真正执行 Rust 业务逻辑的动态库。
+
+示例工程会把当前平台的 Rust 动态库内嵌进 `My.Plugin.dll`，部署时只需要复制插件 DLL。运行时，RustBridge 会把内嵌的原生库释放到本机缓存目录后加载。
 
 ## 方式一：从示例复制
 
@@ -39,7 +41,7 @@ samples/RustBridgeDemo/
 ```csharp
 public override string Id => "mslx-plugin-my-plugin";
 public override string Name => "My Plugin";
-public override string Version => "1.0.0";
+public override string Version => "1.1.0";
 ```
 
 插件 ID 建议符合 MSLX 约定：
@@ -73,7 +75,7 @@ protected override string RustLibraryName => "my_plugin_native";
 第二处，插件 `.csproj`：
 
 ```xml
-<RustLibName>my_plugin_native</RustLibName>
+<RustBridgeRustLibName>my_plugin_native</RustBridgeRustLibName>
 ```
 
 第三处，`rust/Cargo.toml`：
@@ -128,7 +130,7 @@ dotnet build -c Release
 cargo build --release
 ```
 
-并把 Rust 动态库复制到输出目录。
+并把 Rust 动态库内嵌到插件 DLL。
 
 ## 方式二：在已有 C# 插件中引用 RustBridge
 
@@ -144,7 +146,24 @@ dotnet nuget add source ./csharp/bin/Release -n rustbridge-local
 然后在你的插件工程中添加：
 
 ```xml
-<PackageReference Include="MSLX.Plugin.RustBridge" Version="1.0.0" />
+<PackageReference Include="MSLX.Plugin.RustBridge" Version="1.1.0" />
+```
+
+从 `1.1.0` 开始，NuGet 包会默认导入构建规则。只要插件工程下有 `rust/Cargo.toml`，构建插件时会自动执行 `cargo build --release`，并把当前平台的原生库内嵌到插件 DLL。
+
+常用配置：
+
+```xml
+<PropertyGroup>
+  <RustBridgeRustLibName>my_plugin_native</RustBridgeRustLibName>
+  <RustBridgeRustProjectDir>$(MSBuildProjectDirectory)/rust</RustBridgeRustProjectDir>
+</PropertyGroup>
+```
+
+如果你确实想回到旁边文件部署，可以关闭默认内嵌：
+
+```xml
+<RustBridgeEmbedNativeLibrary>false</RustBridgeEmbedNativeLibrary>
 ```
 
 开发阶段也可以直接用 `ProjectReference`：
@@ -171,7 +190,7 @@ public sealed class MyPluginEntry : RustPluginBase
 
     public override string Id => "mslx-plugin-my-plugin";
     public override string Name => "My Plugin";
-    public override string Version => "1.0.0";
+    public override string Version => "1.1.0";
     public override string Developer => "Your Name";
 
     protected override string RustLibraryName => "my_plugin_native";
@@ -222,7 +241,7 @@ Rust 收到：
 ```toml
 [package]
 name = "my-plugin-native"
-version = "1.0.0"
+version = "1.1.0"
 edition = "2024"
 
 [lib]
@@ -242,18 +261,16 @@ samples/RustBridgeDemo/rust/src/lib.rs
 
 ## 部署
 
-部署时至少复制两个文件：
+如果沿用示例工程的内嵌原生库配置，部署时只需要复制一个文件：
 
 ```text
 My.Plugin.dll
-libmy_plugin_native.so
 ```
 
 如果你的构建没有把依赖合并到插件 DLL，还需要复制相关依赖 DLL。示例工程通过 ILRepack 合并托管依赖，所以输出目录最后只保留：
 
 ```text
 MSLX.Plugin.RustBridge.Demo.dll
-libmslx_plugin_rustbridge.so
 ```
 
 ## 检查清单
@@ -261,8 +278,8 @@ libmslx_plugin_rustbridge.so
 发布或试装前建议检查：
 
 - `RustPluginEntry.Id` 和 Controller `[Route]` 中的插件 ID 一致。
-- `RustLibraryName`、`.csproj` 的 `RustLibName`、`Cargo.toml` 的 `[lib] name` 一致。
+- `RustLibraryName`、`.csproj` 的 `RustBridgeRustLibName`、`Cargo.toml` 的 `[lib] name` 一致。
 - 输出目录里有插件 DLL。
-- 输出目录里有当前平台对应的 Rust 原生库。
+- 插件 DLL 内有 `RustBridge.Native.<rid>.<file>` 原生库资源。
 - Rust 导出了 `plugin_init`、`plugin_handle_request`、`plugin_free_response`、`plugin_unload`。
 - Rust 响应 JSON 能被 `JObject.Parse` 解析。

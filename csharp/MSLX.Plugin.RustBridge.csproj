@@ -11,7 +11,7 @@
     <DebugType>none</DebugType>
     <IsPackable>true</IsPackable>
     <PackageId>MSLX.Plugin.RustBridge</PackageId>
-    <Version>1.0.0</Version>
+    <Version>1.1.0</Version>
     <Authors>Yuyi-Oak</Authors>
     <Company>MSLTeam</Company>
     <Description>MSLX plugin bridge library for forwarding plugin lifecycle and HTTP requests to Rust cdylibs.</Description>
@@ -30,5 +30,8 @@
 
   <ItemGroup>
     <None Include="../README.md" Pack="true" PackagePath="/" />
+    <None Include="buildTransitive/MSLX.Plugin.RustBridge.targets"
+          Pack="true"
+          PackagePath="buildTransitive/MSLX.Plugin.RustBridge.targets" />
   </ItemGroup>
 </Project>

@@ -63,7 +63,7 @@ samples/RustBridgeDemo/MSLX.Plugin.RustBridge.Demo.csproj
 - 提供插件元数据。
 - 提供插件 API 路由前缀。
 - 构建 Rust cdylib。
-- 把 Rust cdylib 复制到输出目录。
+- 把 Rust cdylib 内嵌到插件 DLL。
 - 合并托管依赖，方便试装。
 
 ## 生命周期
@@ -127,17 +127,16 @@ Rust sdk.config_servers_get_list()
 RustBridge 类库产物：
 
 ```text
-MSLX.Plugin.RustBridge.1.0.0.nupkg
+MSLX.Plugin.RustBridge.1.1.0.nupkg
 ```
 
 示例插件产物：
 
 ```text
 MSLX.Plugin.RustBridge.Demo.dll
-libmslx_plugin_rustbridge.so
 ```
 
-类库 NuGet 不包含 Rust 动态库。Rust 动态库属于具体插件。
+类库 NuGet 不包含 Rust 动态库。Rust 动态库属于具体插件，示例工程会把它作为资源内嵌到插件 DLL。
 
 ## 为什么不把 Rust 打进 NuGet
 
@@ -148,4 +147,4 @@ libmslx_plugin_rustbridge.so
 - 插件作者需要自己控制 Rust 构建、依赖和发布节奏。
 - NuGet 包应该只提供可复用 C# 桥接能力。
 
-所以当前设计是：RustBridge NuGet 只带 C#；插件工程自己构建并部署 Rust cdylib。
+所以当前设计是：RustBridge NuGet 只带 C# 桥接代码和默认构建规则；插件工程自己构建 Rust cdylib，并决定是内嵌到插件 DLL，还是作为旁边文件部署。

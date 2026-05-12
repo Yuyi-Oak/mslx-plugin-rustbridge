@@ -44,7 +44,7 @@ public override string Id => "mslx-plugin-my-plugin";
 ```csharp
 public override string Name => "My Plugin";
 public override string Description => "插件说明";
-public override string Version => "1.0.0";
+public override string Version => "1.1.0";
 public override string Developer => "Your Name";
 public override string AuthorUrl => "https://example.com";
 public override string PluginUrl => "https://github.com/example/my-plugin";
@@ -218,10 +218,12 @@ Rust 收到的 `sub_path`：
 
 加载顺序：
 
-1. 先尝试用 `NativeLibrary.TryLoad(libraryName)` 让系统按默认规则查找。
-2. 再尝试 `AppContext.BaseDirectory` 下的平台文件名。
-3. 再尝试当前程序集所在目录下的平台文件名。
-4. 全部失败时抛出 `DllNotFoundException`。
+1. 先查找插件程序集内的 `RustBridge.Native.<rid>.<file>` 资源。
+2. 如果找到，释放到本机缓存目录并用 `NativeLibrary.Load(path)` 加载。
+3. 如果没有内嵌资源，再尝试用 `NativeLibrary.TryLoad(libraryName)` 让系统按默认规则查找。
+4. 再尝试 `AppContext.BaseDirectory` 下的平台文件名。
+5. 再尝试当前程序集所在目录下的平台文件名。
+6. 全部失败时抛出 `DllNotFoundException`。
 
 它会查找四个导出符号：
 

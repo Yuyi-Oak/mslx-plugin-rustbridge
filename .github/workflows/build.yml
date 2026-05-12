@@ -51,7 +51,8 @@ jobs:
           nupkgs=(csharp/bin/$CONFIGURATION/*.nupkg)
           test "${#nupkgs[@]}" -gt 0
           test -f samples/RustBridgeDemo/bin/$CONFIGURATION/net10.0/MSLX.Plugin.RustBridge.Demo.dll
-          test -f samples/RustBridgeDemo/bin/$CONFIGURATION/net10.0/libmslx_plugin_rustbridge.so
+          grep -a -q "RustBridge.Native.linux-x64.libmslx_plugin_rustbridge.so" \
+            samples/RustBridgeDemo/bin/$CONFIGURATION/net10.0/MSLX.Plugin.RustBridge.Demo.dll
 
       - name: Package Linux artifacts
         run: |
@@ -59,7 +60,6 @@ jobs:
           mkdir -p artifacts/nuget artifacts/demo-linux
           cp csharp/bin/$CONFIGURATION/*.nupkg artifacts/nuget/
           cp samples/RustBridgeDemo/bin/$CONFIGURATION/net10.0/MSLX.Plugin.RustBridge.Demo.dll artifacts/demo-linux/
-          cp samples/RustBridgeDemo/bin/$CONFIGURATION/net10.0/libmslx_plugin_rustbridge.so artifacts/demo-linux/
           tar -C artifacts/demo-linux -czf artifacts/rustbridge-demo-linux.tar.gz .
 
       - name: Upload NuGet package
@@ -109,18 +109,18 @@ jobs:
           $ErrorActionPreference = 'Stop'
           $outDir = "samples\RustBridgeDemo\bin\$env:CONFIGURATION\net10.0"
           $managedDll = Join-Path $outDir 'MSLX.Plugin.RustBridge.Demo.dll'
-          $nativeDll = Join-Path $outDir 'mslx_plugin_rustbridge.dll'
 
           if (-not (Test-Path $managedDll)) {
             throw "Missing managed plugin DLL: $managedDll"
           }
-          if (-not (Test-Path $nativeDll)) {
-            throw "Missing Rust native DLL: $nativeDll"
+          $managedBytes = [System.IO.File]::ReadAllBytes($managedDll)
+          $managedText = [System.Text.Encoding]::UTF8.GetString($managedBytes)
+          if (-not $managedText.Contains('RustBridge.Native.win-x64.mslx_plugin_rustbridge.dll')) {
+            throw "Managed plugin DLL does not contain the embedded Windows native library."
           }
 
           New-Item -ItemType Directory -Path artifacts\demo-windows -Force | Out-Null
           Copy-Item $managedDll artifacts\demo-windows\
-          Copy-Item $nativeDll artifacts\demo-windows\
           Compress-Archive -Path artifacts\demo-windows\* -DestinationPath artifacts\rustbridge-demo-windows.zip -Force
 
       - name: Upload Windows demo package

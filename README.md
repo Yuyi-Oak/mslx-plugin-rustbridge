@@ -75,12 +75,11 @@ build.bat
 构建完成后会得到两类产物：
 
 ```text
-csharp/bin/Release/MSLX.Plugin.RustBridge.1.0.0.nupkg
+csharp/bin/Release/MSLX.Plugin.RustBridge.1.1.0.nupkg
 samples/RustBridgeDemo/bin/Release/net10.0/MSLX.Plugin.RustBridge.Demo.dll
-samples/RustBridgeDemo/bin/Release/net10.0/libmslx_plugin_rustbridge.so
 ```
 
-Windows 下示例原生库文件名是 `mslx_plugin_rustbridge.dll`。macOS 下是 `libmslx_plugin_rustbridge.dylib`。
+示例插件会把当前平台的 Rust 原生库内嵌到 `MSLX.Plugin.RustBridge.Demo.dll`。运行时会释放到本机缓存目录后再加载。
 
 常用构建参数：
 
@@ -93,11 +92,10 @@ CONFIGURATION=Debug ./build.sh
 
 ## 试跑示例插件
 
-构建后，把下面两个文件放进 MSLX 插件目录：
+构建后，把下面这个文件放进 MSLX 插件目录：
 
 ```text
 samples/RustBridgeDemo/bin/Release/net10.0/MSLX.Plugin.RustBridge.Demo.dll
-samples/RustBridgeDemo/bin/Release/net10.0/libmslx_plugin_rustbridge.so
 ```
 
 然后在 MSLX 中加载插件。示例插件 ID 是：
@@ -117,7 +115,7 @@ POST /api/plugins/mslx-plugin-rustbridge-demo/echo
 
 ## 在自己的插件中使用
 
-推荐先读 [Getting Started](docs/getting-started.md)。最小接入需要两个 C# 类型和一个 Rust cdylib。
+推荐先读 [Getting Started](docs/getting-started.md)。最小接入需要两个 C# 类型和一个 Rust cdylib；示例工程会在构建时把 cdylib 内嵌进插件 DLL。
 
 插件入口：
 
@@ -137,7 +135,7 @@ public sealed class MyPluginEntry : RustPluginBase
 
     public override string Id => "mslx-plugin-my-plugin";
     public override string Name => "My Plugin";
-    public override string Version => "1.0.0";
+    public override string Version => "1.1.0";
 
     protected override string RustLibraryName => "my_plugin_native";
 }
@@ -184,5 +182,5 @@ crate-type = ["cdylib"]
 
 - 如果你只是想写业务逻辑，优先改自己的 Rust `router.rs`。
 - 如果你要增加 MSLX SDK 能力，需要同时扩展 C# 的 `HandleSdkCall` 和 Rust 的 `SdkBridge`。
-- 如果你要改 Rust 动态库名字，要同时改 C# 的 `RustLibraryName`、项目构建里的 `RustLibName` 和 Rust `Cargo.toml` 的 `[lib] name`。
-- 不要把 Rust 源码目录复制到插件部署目录；部署目录只需要插件 DLL 和原生库。
+- 如果你要改 Rust 动态库名字，要同时改 C# 的 `RustLibraryName`、项目构建里的 `RustBridgeRustLibName` 和 Rust `Cargo.toml` 的 `[lib] name`。
+- 不要把 Rust 源码目录复制到插件部署目录；默认内嵌打包后，部署目录只需要插件 DLL。

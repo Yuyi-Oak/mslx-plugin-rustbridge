@@ -14,6 +14,6 @@ public sealed class RustPluginEntry : RustPluginBase
     public override string Id => "mslx-plugin-rustbridge-demo";
     public override string Name => "MSLX RustBridge Demo";
     public override string Description => "RustBridge 类库的示例 MSLX 插件";
-    public override string Version => "1.0.0";
+    public override string Version => "1.1.0";
     public override string Developer => "Yuyi-Oak";
 }

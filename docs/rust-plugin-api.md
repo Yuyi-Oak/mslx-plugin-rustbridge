@@ -4,7 +4,7 @@
 
 ## 基本约定
 
-RustBridge 不会把 Rust 代码打进 NuGet 包。每个插件都应该维护自己的 Rust cdylib，并在构建时把原生库复制到插件 DLL 旁边。
+RustBridge 不会把 Rust 代码打进 NuGet 包。每个插件都应该维护自己的 Rust cdylib。示例工程会在构建时把当前平台原生库内嵌到插件 DLL，也可以按需要改成旁边文件部署。
 
 默认库名是：
 
@@ -23,7 +23,7 @@ macOS:   libmslx_plugin_rustbridge.dylib
 如果你改了库名，需要同时改三处：
 
 - C# 插件入口里的 `RustLibraryName`。
-- 插件 `.csproj` 里的 `RustLibName` 或对应复制逻辑。
+- 插件 `.csproj` 里的 `RustBridgeRustLibName` 或对应内嵌/部署逻辑。
 - Rust `Cargo.toml` 里的 `[lib] name`。
 
 ## 必须导出的函数

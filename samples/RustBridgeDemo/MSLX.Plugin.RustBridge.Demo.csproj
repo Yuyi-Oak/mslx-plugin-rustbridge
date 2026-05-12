@@ -9,7 +9,7 @@
     <RootNamespace>MSLX.Plugin.RustBridge.Demo</RootNamespace>
     <GenerateDependencyFile>false</GenerateDependencyFile>
     <DebugType>none</DebugType>
-    <RustLibName>mslx_plugin_rustbridge</RustLibName>
+    <RustBridgeRustLibName>mslx_plugin_rustbridge</RustBridgeRustLibName>
     <ILRepackTargetsFile>$(MSBuildProjectDirectory)/ILRepack.targets</ILRepackTargetsFile>
   </PropertyGroup>
 
@@ -29,29 +29,14 @@
     </None>
   </ItemGroup>
 
-  <Target Name="BuildRust" BeforeTargets="CopyRustLib">
-    <Exec WorkingDirectory="$(MSBuildProjectDirectory)/rust"
-          Command="cargo build --release" />
-  </Target>
-
-  <Target Name="CopyRustLib" AfterTargets="Build">
-    <PropertyGroup>
-      <RustTarget Condition="$([MSBuild]::IsOSPlatform('Linux'))">$(MSBuildProjectDirectory)/rust/target/release/lib$(RustLibName).so</RustTarget>
-      <RustTarget Condition="$([MSBuild]::IsOSPlatform('Windows'))">$(MSBuildProjectDirectory)/rust/target/release/$(RustLibName).dll</RustTarget>
-      <RustTarget Condition="$([MSBuild]::IsOSPlatform('OSX'))">$(MSBuildProjectDirectory)/rust/target/release/lib$(RustLibName).dylib</RustTarget>
-    </PropertyGroup>
-    <Copy SourceFiles="$(RustTarget)"
-          DestinationFolder="$(OutDir)"
-          SkipUnchangedFiles="true"
-          Condition="Exists('$(RustTarget)')" />
-  </Target>
+  <Import Project="../../csharp/buildTransitive/MSLX.Plugin.RustBridge.targets" />
 
   <Target Name="ResetMergeDependenciesMarker" BeforeTargets="CoreCompile">
     <Delete Files="$(IntermediateOutputPath)rustbridge-merged.marker" />
   </Target>
 
   <Target Name="MergeDependencies"
-          AfterTargets="CopyRustLib"
+          AfterTargets="Build"
           Condition="'$(Configuration)' == 'Release' and !Exists('$(IntermediateOutputPath)rustbridge-merged.marker')">
     <ItemGroup>
       <_RustBridgeDependenciesToMerge Remove="@(_RustBridgeDependenciesToMerge)" />

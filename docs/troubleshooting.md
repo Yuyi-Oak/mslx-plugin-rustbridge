@@ -12,9 +12,10 @@ Unable to load Rust native library 'xxx'
 
 检查：
 
-- 输出目录里是否存在当前平台对应的原生库。
+- 插件 DLL 内是否存在当前平台对应的 `RustBridge.Native.<rid>.<file>` 资源。
+- 如果没有内嵌资源，输出目录里是否存在当前平台对应的原生库。
 - `RustPluginEntry.RustLibraryName` 是否正确。
-- `.csproj` 中 `RustLibName` 是否正确。
+- `.csproj` 中 `RustBridgeRustLibName` 是否正确。
 - `Cargo.toml` 中 `[lib] name` 是否正确。
 - Linux 文件名是否带 `lib` 前缀和 `.so` 后缀。
 - Windows 文件名是否是 `.dll`。
@@ -141,20 +142,23 @@ Controller：
 
 这两个地方建议保持一致。大小写也建议一致，统一小写最稳妥。
 
-## 构建后输出目录里没有 .so 或 .dll
+## 插件 DLL 里没有内嵌原生库
 
 检查 `.csproj` 是否有类似逻辑：
 
 ```xml
-<Target Name="BuildRust" BeforeTargets="CopyRustLib">
+<EmbeddedResource Include="$(RustTarget)">
+  <LogicalName>RustBridge.Native.$(RustRuntimeIdentifier).$(RustNativeFileName)</LogicalName>
+</EmbeddedResource>
+
+<Target Name="BuildRust" BeforeTargets="PrepareRustNativeResource">
   <Exec WorkingDirectory="$(MSBuildProjectDirectory)/rust"
         Command="cargo build --release" />
 </Target>
 
-<Target Name="CopyRustLib" AfterTargets="Build">
-  <Copy SourceFiles="$(RustTarget)"
-        DestinationFolder="$(OutDir)"
-        Condition="Exists('$(RustTarget)')" />
+<Target Name="PrepareRustNativeResource" BeforeTargets="PrepareResourceNames">
+  <Error Condition="!Exists('$(RustTarget)')"
+         Text="Rust native library was not found: $(RustTarget)" />
 </Target>
 ```
 
