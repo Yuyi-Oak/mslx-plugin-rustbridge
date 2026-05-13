@@ -71,21 +71,6 @@ jobs:
             rust_target: arm-unknown-linux-gnueabi
             cargo_command: cross
             native_file: libmslx_plugin_rustbridge.so
-          - rid: linux-musl-x64
-            runner: ubuntu-latest
-            rust_target: x86_64-unknown-linux-musl
-            cargo_command: cross
-            native_file: libmslx_plugin_rustbridge.so
-          - rid: linux-musl-arm64
-            runner: ubuntu-latest
-            rust_target: aarch64-unknown-linux-musl
-            cargo_command: cross
-            native_file: libmslx_plugin_rustbridge.so
-          - rid: linux-musl-arm
-            runner: ubuntu-latest
-            rust_target: armv7-unknown-linux-musleabihf
-            cargo_command: cross
-            native_file: libmslx_plugin_rustbridge.so
           - rid: freebsd-x64
             runner: ubuntu-latest
             rust_target: x86_64-unknown-freebsd
@@ -265,9 +250,6 @@ jobs:
             RustBridge.Native.linux-arm64.libmslx_plugin_rustbridge.so \
             RustBridge.Native.linux-arm.libmslx_plugin_rustbridge.so \
             RustBridge.Native.linux-armel.libmslx_plugin_rustbridge.so \
-            RustBridge.Native.linux-musl-x64.libmslx_plugin_rustbridge.so \
-            RustBridge.Native.linux-musl-arm64.libmslx_plugin_rustbridge.so \
-            RustBridge.Native.linux-musl-arm.libmslx_plugin_rustbridge.so \
             RustBridge.Native.freebsd-x64.libmslx_plugin_rustbridge.so \
             RustBridge.Native.win-x64.mslx_plugin_rustbridge.dll \
             RustBridge.Native.win-x86.mslx_plugin_rustbridge.dll \
