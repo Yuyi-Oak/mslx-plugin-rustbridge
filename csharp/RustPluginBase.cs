@@ -1,3 +1,5 @@
+using System.Reflection;
+using System.Runtime.ExceptionServices;
 using Newtonsoft.Json.Linq;
 using SDK = MSLX.SDK;
 
@@ -5,6 +7,10 @@ namespace MSLX.Plugin.RustBridge;
 
 public abstract class RustPluginBase : SDK.IPlugin, IDisposable
 {
+    private const string PluginConfigApiMissing =
+        "MSLX SDK plugin config API requires MSLX.SDK 1.4.3 or newer.";
+    private static readonly Lazy<MethodInfo?> PluginConfigMethod = new(FindPluginConfigMethod);
+
     private RustNativeLoader? _native;
     private RustNativeLoader.LogCallback? _logInfo;
     private RustNativeLoader.LogCallback? _logWarn;
@@ -17,7 +23,7 @@ public abstract class RustPluginBase : SDK.IPlugin, IDisposable
     public virtual string Name => "MSLX RustBridge Plugin";
     public virtual string Description => "由 Rust 实现的 MSLX Plugin";
     public virtual string Icon => "https://www.mslmc.cn/logo.png";
-    public virtual string Version => "1.1.1";
+    public virtual string Version => "1.2.0";
     public virtual string MinSDKVersion => "1.4.0";
     public virtual string Developer => "Yuyi-Oak";
     public virtual string AuthorUrl => "https://github.com/Yuyi-Oak";
@@ -102,6 +108,25 @@ public abstract class RustPluginBase : SDK.IPlugin, IDisposable
                     => Exec(() => SDK.MSLX.Config.Main.WriteConfigKey(
                         args["key"]!.ToString(), args["value"]!)),
 
+                "plugin.config.get_data_path"
+                    => JValue.CreateString(GetPluginConfigDataPath()).ToString(),
+
+                "plugin.config.read"
+                    => GetPluginConfig().ReadConfig().ToString(),
+
+                "plugin.config.write"
+                    => Exec(() => GetPluginConfig().WriteConfig(
+                        args["content"]?.ToObject<JObject>()
+                        ?? throw new Exception("content must be a JSON object"))),
+
+                "plugin.config.read_key"
+                    => (GetPluginConfig().ReadConfigKey(args["key"]!.ToString())
+                        ?? JValue.CreateNull()).ToString(),
+
+                "plugin.config.write_key"
+                    => Exec(() => GetPluginConfig().WriteConfigKey(
+                        args["key"]!.ToString(), args["value"]!)),
+
                 "config.servers.get_list"
                     => JArray.FromObject(SDK.MSLX.Config.Servers.GetServerList()).ToString(),
 
@@ -154,4 +179,71 @@ public abstract class RustPluginBase : SDK.IPlugin, IDisposable
 
     private static string Error(string msg)
         => new JObject { ["error"] = msg }.ToString();
+
+    private string GetPluginConfigDataPath()
+        => GetPluginConfig().GetDataPath();
+
+    private PluginConfigBridge GetPluginConfig()
+    {
+        var method = PluginConfigMethod.Value
+            ?? throw new NotSupportedException(PluginConfigApiMissing);
+
+        var bridge = method.Invoke(null, new object[] { this })
+            ?? throw new InvalidOperationException("MSLX SDK returned an empty plugin config bridge.");
+
+        return new PluginConfigBridge(bridge);
+    }
+
+    private static MethodInfo? FindPluginConfigMethod()
+        => typeof(SDK.IPlugin).Assembly
+            .GetType("MSLX.SDK.PluginExtensions")
+            ?.GetMethod(
+                "Config",
+                BindingFlags.Public | BindingFlags.Static,
+                null,
+                new[] { typeof(SDK.IPlugin) },
+                null);
+
+    private sealed class PluginConfigBridge
+    {
+        private readonly object _inner;
+
+        public PluginConfigBridge(object inner)
+        {
+            _inner = inner;
+        }
+
+        public string GetDataPath()
+            => (string)(Invoke(nameof(GetDataPath)) ?? string.Empty);
+
+        public JObject ReadConfig()
+            => (JObject)(Invoke(nameof(ReadConfig)) ?? new JObject());
+
+        public void WriteConfig(JObject content)
+            => Invoke(nameof(WriteConfig), content);
+
+        public JToken? ReadConfigKey(string key)
+            => Invoke(nameof(ReadConfigKey), key) as JToken;
+
+        public void WriteConfigKey(string key, JToken value)
+            => Invoke(nameof(WriteConfigKey), key, value);
+
+        private object? Invoke(string methodName, params object?[] args)
+        {
+            var method = _inner.GetType().GetMethod(
+                methodName,
+                BindingFlags.Public | BindingFlags.Instance)
+                ?? throw new MissingMethodException(_inner.GetType().FullName, methodName);
+
+            try
+            {
+                return method.Invoke(_inner, args);
+            }
+            catch (TargetInvocationException ex) when (ex.InnerException is not null)
+            {
+                ExceptionDispatchInfo.Capture(ex.InnerException).Throw();
+                throw;
+            }
+        }
+    }
 }

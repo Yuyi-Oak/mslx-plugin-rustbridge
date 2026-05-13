@@ -17,8 +17,8 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  package-linux:
-    name: Package Linux demo and NuGet
+  package-nuget:
+    name: Package NuGet
     runs-on: ubuntu-latest
 
     steps:
@@ -30,57 +30,181 @@ jobs:
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
-      - name: Set up Rust
-        uses: actions-rust-lang/setup-rust-toolchain@v1
-        with:
-          toolchain: stable
-
-      - name: Restore .NET projects
-        run: dotnet restore mslx-plugin-rustbridge.sln
+      - name: Restore RustBridge library
+        run: dotnet restore csharp/MSLX.Plugin.RustBridge.csproj
 
       - name: Pack RustBridge library
         run: dotnet pack csharp/MSLX.Plugin.RustBridge.csproj -c "$CONFIGURATION" --no-restore
-
-      - name: Build demo plugin
-        run: dotnet build samples/RustBridgeDemo/MSLX.Plugin.RustBridge.Demo.csproj -c "$CONFIGURATION" --no-restore
-
-      - name: Verify Linux outputs
-        run: |
-          set -euo pipefail
-          shopt -s nullglob
-          nupkgs=(csharp/bin/$CONFIGURATION/*.nupkg)
-          test "${#nupkgs[@]}" -gt 0
-          test -f samples/RustBridgeDemo/bin/$CONFIGURATION/net10.0/MSLX.Plugin.RustBridge.Demo.dll
-          grep -a -q "RustBridge.Native.linux-x64.libmslx_plugin_rustbridge.so" \
-            samples/RustBridgeDemo/bin/$CONFIGURATION/net10.0/MSLX.Plugin.RustBridge.Demo.dll
-
-      - name: Package Linux artifacts
-        run: |
-          set -euo pipefail
-          mkdir -p artifacts/nuget artifacts/demo-linux
-          cp csharp/bin/$CONFIGURATION/*.nupkg artifacts/nuget/
-          cp samples/RustBridgeDemo/bin/$CONFIGURATION/net10.0/MSLX.Plugin.RustBridge.Demo.dll artifacts/demo-linux/
-          tar -C artifacts/demo-linux -czf artifacts/rustbridge-demo-linux.tar.gz .
 
       - name: Upload NuGet package
         uses: actions/upload-artifact@v7
         with:
           name: rustbridge-nuget
-          path: artifacts/nuget/*.nupkg
+          path: csharp/bin/${{ env.CONFIGURATION }}/*.nupkg
           if-no-files-found: error
           retention-days: 14
 
-      - name: Upload Linux demo package
+  build-native-unix:
+    name: Build native library (${{ matrix.rid }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - rid: linux-x64
+            runner: ubuntu-latest
+            rust_target: x86_64-unknown-linux-gnu
+            cargo_command: cargo
+            native_file: libmslx_plugin_rustbridge.so
+          - rid: linux-arm64
+            runner: ubuntu-24.04-arm
+            rust_target: aarch64-unknown-linux-gnu
+            cargo_command: cargo
+            native_file: libmslx_plugin_rustbridge.so
+          - rid: linux-arm
+            runner: ubuntu-latest
+            rust_target: armv7-unknown-linux-gnueabihf
+            cargo_command: cross
+            native_file: libmslx_plugin_rustbridge.so
+          - rid: linux-armel
+            runner: ubuntu-latest
+            rust_target: arm-unknown-linux-gnueabi
+            cargo_command: cross
+            native_file: libmslx_plugin_rustbridge.so
+          - rid: linux-musl-x64
+            runner: ubuntu-latest
+            rust_target: x86_64-unknown-linux-musl
+            cargo_command: cross
+            native_file: libmslx_plugin_rustbridge.so
+          - rid: linux-musl-arm64
+            runner: ubuntu-latest
+            rust_target: aarch64-unknown-linux-musl
+            cargo_command: cross
+            native_file: libmslx_plugin_rustbridge.so
+          - rid: linux-musl-arm
+            runner: ubuntu-latest
+            rust_target: armv7-unknown-linux-musleabihf
+            cargo_command: cross
+            native_file: libmslx_plugin_rustbridge.so
+          - rid: freebsd-x64
+            runner: ubuntu-latest
+            rust_target: x86_64-unknown-freebsd
+            cargo_command: cross
+            native_file: libmslx_plugin_rustbridge.so
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: stable
+          target: ${{ matrix.rust_target }}
+
+      - name: Install cross
+        if: matrix.cargo_command == 'cross'
+        run: |
+          set -euo pipefail
+          cargo install cross --locked
+          docker version
+
+      - name: Build native library
+        working-directory: samples/RustBridgeDemo/rust
+        run: ${{ matrix.cargo_command }} build --release --target ${{ matrix.rust_target }}
+
+      - name: Upload native library
         uses: actions/upload-artifact@v7
         with:
-          name: rustbridge-demo-linux
-          path: artifacts/rustbridge-demo-linux.tar.gz
+          name: rustbridge-native-${{ matrix.rid }}
+          path: samples/RustBridgeDemo/rust/target/${{ matrix.rust_target }}/release/${{ matrix.native_file }}
           if-no-files-found: error
           retention-days: 14
 
-  package-windows:
-    name: Package Windows demo
-    runs-on: windows-latest
+  build-native-windows:
+    name: Build native library (${{ matrix.rid }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - rid: win-x64
+            runner: windows-latest
+            rust_target: x86_64-pc-windows-msvc
+            native_file: mslx_plugin_rustbridge.dll
+          - rid: win-x86
+            runner: windows-latest
+            rust_target: i686-pc-windows-msvc
+            native_file: mslx_plugin_rustbridge.dll
+          - rid: win-arm64
+            runner: windows-11-arm
+            rust_target: aarch64-pc-windows-msvc
+            native_file: mslx_plugin_rustbridge.dll
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: stable
+          target: ${{ matrix.rust_target }}
+
+      - name: Build native library
+        working-directory: samples/RustBridgeDemo/rust
+        run: cargo build --release --target ${{ matrix.rust_target }}
+
+      - name: Upload native library
+        uses: actions/upload-artifact@v7
+        with:
+          name: rustbridge-native-${{ matrix.rid }}
+          path: samples/RustBridgeDemo/rust/target/${{ matrix.rust_target }}/release/${{ matrix.native_file }}
+          if-no-files-found: error
+          retention-days: 14
+
+  build-native-macos:
+    name: Build native library (${{ matrix.rid }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - rid: osx-x64
+            runner: macos-15-intel
+            rust_target: x86_64-apple-darwin
+            native_file: libmslx_plugin_rustbridge.dylib
+          - rid: osx-arm64
+            runner: macos-15
+            rust_target: aarch64-apple-darwin
+            native_file: libmslx_plugin_rustbridge.dylib
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: stable
+          target: ${{ matrix.rust_target }}
+
+      - name: Build native library
+        working-directory: samples/RustBridgeDemo/rust
+        run: cargo build --release --target ${{ matrix.rust_target }}
+
+      - name: Upload native library
+        uses: actions/upload-artifact@v7
+        with:
+          name: rustbridge-native-${{ matrix.rid }}
+          path: samples/RustBridgeDemo/rust/target/${{ matrix.rust_target }}/release/${{ matrix.native_file }}
+          if-no-files-found: error
+          retention-days: 14
+
+  package-demo:
+    name: Package demo DLL
+    needs: [ build-native-unix, build-native-windows, build-native-macos ]
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
@@ -91,108 +215,108 @@ jobs:
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
-      - name: Set up Rust
-        uses: actions-rust-lang/setup-rust-toolchain@v1
+      - name: Download native libraries
+        uses: actions/download-artifact@v7
         with:
-          toolchain: stable
+          pattern: rustbridge-native-*
+          path: native_artifacts
+
+      - name: Generate native resource props
+        run: |
+          set -euo pipefail
+          props="$PWD/native_artifacts/RustBridgeNativeResources.props"
+          {
+            echo '<Project>'
+            echo '  <ItemGroup>'
+            for dir in native_artifacts/rustbridge-native-*; do
+              test -d "$dir"
+              rid="${dir##*/rustbridge-native-}"
+              file="$(find "$dir" -maxdepth 1 -type f | head -n 1)"
+              test -n "$file"
+              native_file="$(basename "$file")"
+              echo "    <RustBridgeNativeResource Include=\"$PWD/$file\">"
+              echo "      <RuntimeIdentifier>$rid</RuntimeIdentifier>"
+              echo "      <NativeFileName>$native_file</NativeFileName>"
+              echo '    </RustBridgeNativeResource>'
+            done
+            echo '  </ItemGroup>'
+            echo '</Project>'
+          } > "$props"
+          cat "$props"
 
       - name: Restore .NET projects
         run: dotnet restore mslx-plugin-rustbridge.sln
 
-      - name: Build demo plugin
-        run: dotnet build samples/RustBridgeDemo/MSLX.Plugin.RustBridge.Demo.csproj -c $env:CONFIGURATION --no-restore
-        shell: pwsh
+      - name: Build combined demo DLL
+        run: >
+          dotnet build samples/RustBridgeDemo/MSLX.Plugin.RustBridge.Demo.csproj
+          -c "$CONFIGURATION"
+          --no-restore
+          -p:RustBridgeBuildRust=false
+          -p:RustBridgeNativeResourcesProps="$PWD/native_artifacts/RustBridgeNativeResources.props"
 
-      - name: Package Windows artifacts
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = 'Stop'
-          $outDir = "samples\RustBridgeDemo\bin\$env:CONFIGURATION\net10.0"
-          $managedDll = Join-Path $outDir 'MSLX.Plugin.RustBridge.Demo.dll'
-
-          if (-not (Test-Path $managedDll)) {
-            throw "Missing managed plugin DLL: $managedDll"
-          }
-          $managedBytes = [System.IO.File]::ReadAllBytes($managedDll)
-          $managedText = [System.Text.Encoding]::UTF8.GetString($managedBytes)
-          if (-not $managedText.Contains('RustBridge.Native.win-x64.mslx_plugin_rustbridge.dll')) {
-            throw "Managed plugin DLL does not contain the embedded Windows native library."
-          }
-
-          New-Item -ItemType Directory -Path artifacts\demo-windows -Force | Out-Null
-          Copy-Item $managedDll artifacts\demo-windows\
-          Compress-Archive -Path artifacts\demo-windows\* -DestinationPath artifacts\rustbridge-demo-windows.zip -Force
-
-      - name: Upload Windows demo package
-        uses: actions/upload-artifact@v7
-        with:
-          name: rustbridge-demo-windows
-          path: artifacts/rustbridge-demo-windows.zip
-          if-no-files-found: error
-          retention-days: 14
-
-  package-macos:
-    name: Package macOS demo
-    runs-on: macos-15-intel
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Set up .NET
-        uses: actions/setup-dotnet@v5
-        with:
-          dotnet-version: ${{ env.DOTNET_VERSION }}
-
-      - name: Set up Rust
-        uses: actions-rust-lang/setup-rust-toolchain@v1
-        with:
-          toolchain: stable
-
-      - name: Restore .NET projects
-        run: dotnet restore mslx-plugin-rustbridge.sln
-
-      - name: Build demo plugin
-        run: dotnet build samples/RustBridgeDemo/MSLX.Plugin.RustBridge.Demo.csproj -c "$CONFIGURATION" --no-restore
-
-      - name: Verify macOS outputs
+      - name: Verify combined demo DLL
         run: |
           set -euo pipefail
-          test -f samples/RustBridgeDemo/bin/$CONFIGURATION/net10.0/MSLX.Plugin.RustBridge.Demo.dll
-          grep -a -q "RustBridge.Native.osx-x64.libmslx_plugin_rustbridge.dylib" \
-            samples/RustBridgeDemo/bin/$CONFIGURATION/net10.0/MSLX.Plugin.RustBridge.Demo.dll
+          output="samples/RustBridgeDemo/bin/$CONFIGURATION/net10.0/MSLX.Plugin.RustBridge.Demo.dll"
+          test -f "$output"
+          for resource in \
+            RustBridge.Native.linux-x64.libmslx_plugin_rustbridge.so \
+            RustBridge.Native.linux-arm64.libmslx_plugin_rustbridge.so \
+            RustBridge.Native.linux-arm.libmslx_plugin_rustbridge.so \
+            RustBridge.Native.linux-armel.libmslx_plugin_rustbridge.so \
+            RustBridge.Native.linux-musl-x64.libmslx_plugin_rustbridge.so \
+            RustBridge.Native.linux-musl-arm64.libmslx_plugin_rustbridge.so \
+            RustBridge.Native.linux-musl-arm.libmslx_plugin_rustbridge.so \
+            RustBridge.Native.freebsd-x64.libmslx_plugin_rustbridge.so \
+            RustBridge.Native.win-x64.mslx_plugin_rustbridge.dll \
+            RustBridge.Native.win-x86.mslx_plugin_rustbridge.dll \
+            RustBridge.Native.win-arm64.mslx_plugin_rustbridge.dll \
+            RustBridge.Native.osx-x64.libmslx_plugin_rustbridge.dylib \
+            RustBridge.Native.osx-arm64.libmslx_plugin_rustbridge.dylib; do
+            grep -a -q "$resource" "$output"
+          done
 
-      - name: Package macOS artifacts
-        run: |
-          set -euo pipefail
-          mkdir -p artifacts/demo-macos
-          cp samples/RustBridgeDemo/bin/$CONFIGURATION/net10.0/MSLX.Plugin.RustBridge.Demo.dll artifacts/demo-macos/
-          tar -C artifacts/demo-macos -czf artifacts/rustbridge-demo-macos.tar.gz .
-
-      - name: Upload macOS demo package
+      - name: Upload demo DLL
         uses: actions/upload-artifact@v7
         with:
-          name: rustbridge-demo-macos
-          path: artifacts/rustbridge-demo-macos.tar.gz
+          name: rustbridge-demo-dll
+          path: samples/RustBridgeDemo/bin/${{ env.CONFIGURATION }}/net10.0/MSLX.Plugin.RustBridge.Demo.dll
           if-no-files-found: error
           retention-days: 14
 
   release:
     name: Publish GitHub release
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
-    needs: [ package-linux, package-windows, package-macos ]
+    needs: [ package-nuget, package-demo ]
     runs-on: ubuntu-latest
     permissions:
       contents: write
 
     steps:
-      - name: Download artifacts
+      - name: Download NuGet package
         uses: actions/download-artifact@v7
         with:
+          name: rustbridge-nuget
           path: release_artifacts
 
-      - name: List release artifacts
-        run: find release_artifacts -maxdepth 3 -type f -print | sort
+      - name: Download demo DLL
+        uses: actions/download-artifact@v7
+        with:
+          name: rustbridge-demo-dll
+          path: release_artifacts
+
+      - name: Verify release files
+        run: |
+          set -euo pipefail
+          find release_artifacts -maxdepth 1 -type f -print | sort
+          test "$(find release_artifacts -maxdepth 1 -type f | wc -l)" -eq 2
+          test "$(find release_artifacts -maxdepth 1 -name '*.nupkg' | wc -l)" -eq 1
+          test -f release_artifacts/MSLX.Plugin.RustBridge.Demo.dll
+          if find release_artifacts -maxdepth 1 -type f \( -name '*.zip' -o -name '*.tar.gz' \) | grep -q .; then
+            echo "Release artifacts must not include compressed demo packages."
+            exit 1
+          fi
 
       - name: Set up .NET
         uses: actions/setup-dotnet@v5
@@ -201,7 +325,7 @@ jobs:
 
       - name: Publish NuGet package
         run: |
-          dotnet nuget push "release_artifacts/rustbridge-nuget/*.nupkg" \
+          dotnet nuget push "release_artifacts/*.nupkg" \
             --api-key "${{ secrets.NUGET_API_KEY }}" \
             --source "https://api.nuget.org/v3/index.json" \
             --skip-duplicate
@@ -210,7 +334,5 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            release_artifacts/rustbridge-nuget/*.nupkg
-            release_artifacts/rustbridge-demo-linux/rustbridge-demo-linux.tar.gz
-            release_artifacts/rustbridge-demo-macos/rustbridge-demo-macos.tar.gz
-            release_artifacts/rustbridge-demo-windows/rustbridge-demo-windows.zip
+            release_artifacts/*.nupkg
+            release_artifacts/MSLX.Plugin.RustBridge.Demo.dll

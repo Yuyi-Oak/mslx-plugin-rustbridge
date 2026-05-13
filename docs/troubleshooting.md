@@ -108,6 +108,24 @@ plugin_unload
 sdk().error(&format!("Failed to parse request JSON: {e}"));
 ```
 
+## plugin.config.* 返回 SDK 版本错误
+
+`plugin.config.get_data_path`、`plugin.config.read`、`plugin.config.write`、`plugin.config.read_key`、`plugin.config.write_key` 需要 MSLX SDK 1.4.3+。
+
+如果运行环境还没有这组接口，RustBridge 会返回类似错误：
+
+```json
+{
+  "error": "MSLX SDK plugin config API requires MSLX.SDK 1.4.3 or newer."
+}
+```
+
+处理方式：
+
+- 升级 MSLX 到包含 SDK 1.4.3+ 的版本。
+- 如果插件依赖这组方法，建议把插件入口的 `MinSDKVersion` 设为 `1.4.3` 或更高。
+- 如果只是读取 MSLX 主配置，继续使用 `config.main.*`；不要把插件自己的业务数据写进主配置。
+
 ## Controller 能访问，但 Rust 收到的路径不对
 
 检查 Controller 路由。
@@ -144,25 +162,37 @@ Controller：
 
 ## 插件 DLL 里没有内嵌原生库
 
-检查 `.csproj` 是否有类似逻辑：
+先确认插件工程是否引用了 RustBridge NuGet，或者手动导入了本仓库的构建规则：
 
 ```xml
-<EmbeddedResource Include="$(RustTarget)">
-  <LogicalName>RustBridge.Native.$(RustRuntimeIdentifier).$(RustNativeFileName)</LogicalName>
-</EmbeddedResource>
-
-<Target Name="BuildRust" BeforeTargets="PrepareRustNativeResource">
-  <Exec WorkingDirectory="$(MSBuildProjectDirectory)/rust"
-        Command="cargo build --release" />
-</Target>
-
-<Target Name="PrepareRustNativeResource" BeforeTargets="PrepareResourceNames">
-  <Error Condition="!Exists('$(RustTarget)')"
-         Text="Rust native library was not found: $(RustTarget)" />
-</Target>
+<PackageReference Include="MSLX.Plugin.RustBridge" Version="1.2.0" />
 ```
 
-再检查 `RustTarget` 路径是否和实际 Cargo 产物一致。
+默认规则只会在插件工程下存在 `rust/Cargo.toml` 时启用。常见配置如下：
+
+```xml
+<PropertyGroup>
+  <RustBridgeRustProjectDir>$(MSBuildProjectDirectory)/rust</RustBridgeRustProjectDir>
+  <RustBridgeRustLibName>my_plugin_native</RustBridgeRustLibName>
+</PropertyGroup>
+```
+
+再检查下面几项：
+
+- `RustBridgeRustProjectDir` 是否指向真正的 Rust 工程。
+- `RustBridgeRustLibName` 是否和 Rust `Cargo.toml` 的 `[lib] name` 一致。
+- `RustBridgeRuntimeIdentifier` 是否是当前要打包的 RID，例如 `linux-x64`、`linux-arm64`、`win-arm64`、`osx-arm64`。
+- 显式指定 RID 时，是否已经安装对应 Rust target，例如 `rustup target add aarch64-unknown-linux-gnu`。
+- 如果使用 `RustBridgeCargoCommand=cross`，CI 机器是否能运行 Docker 或 Podman。
+- 如果你手动指定了 `RustBridgeNativePath`，路径是否指向真实存在的 `.dll`、`.so` 或 `.dylib`。
+
+内嵌资源名应该类似：
+
+```text
+RustBridge.Native.linux-arm64.libmy_plugin_native.so
+RustBridge.Native.win-arm64.my_plugin_native.dll
+RustBridge.Native.osx-arm64.libmy_plugin_native.dylib
+```
 
 ## Linux 下权限或依赖问题
 

@@ -44,7 +44,7 @@ public override string Id => "mslx-plugin-my-plugin";
 ```csharp
 public override string Name => "My Plugin";
 public override string Description => "插件说明";
-public override string Version => "1.1.1";
+public override string Version => "1.2.0";
 public override string Developer => "Your Name";
 public override string AuthorUrl => "https://example.com";
 public override string PluginUrl => "https://github.com/example/my-plugin";
@@ -119,6 +119,18 @@ config.servers.get_list
 ```
 
 基类已经内置一些常用 SDK 调用。你可以覆盖它来增加自己的方法：
+
+内置方法里，`plugin.config.*` 对应 MSLX SDK 1.4.3+ 的插件级配置接口：
+
+```text
+plugin.config.get_data_path
+plugin.config.read
+plugin.config.write
+plugin.config.read_key
+plugin.config.write_key
+```
+
+这组接口会读写当前插件自己的数据目录和配置文件。旧的 `config.main.*` 仍然保留，但它对应 MSLX 主配置，不适合保存插件自己的业务数据。
 
 ```csharp
 protected override string HandleSdkCall(string method, string argsJson)
@@ -224,6 +236,8 @@ Rust 收到的 `sub_path`：
 4. 再尝试 `AppContext.BaseDirectory` 下的平台文件名。
 5. 再尝试当前程序集所在目录下的平台文件名。
 6. 全部失败时抛出 `DllNotFoundException`。
+
+内嵌资源查找会先使用 .NET 运行时报告的精确 RID，再退到便携 RID。例如在 Alpine Linux 上，加载器可以先尝试 `linux-musl-x64` 或 `alpine-x64` 这类资源，再退到 `linux-x64`。如果资源名不带 RID，最后也会尝试 `RustBridge.Native.<file>`。
 
 它会查找四个导出符号：
 

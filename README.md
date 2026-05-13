@@ -75,11 +75,11 @@ build.bat
 构建完成后会得到两类产物：
 
 ```text
-csharp/bin/Release/MSLX.Plugin.RustBridge.1.1.1.nupkg
+csharp/bin/Release/MSLX.Plugin.RustBridge.1.2.0.nupkg
 samples/RustBridgeDemo/bin/Release/net10.0/MSLX.Plugin.RustBridge.Demo.dll
 ```
 
-示例插件会把当前平台的 Rust 原生库内嵌到 `MSLX.Plugin.RustBridge.Demo.dll`。运行时会释放到本机缓存目录后再加载。
+示例插件会把当前平台的 Rust 原生库内嵌到 `MSLX.Plugin.RustBridge.Demo.dll`。运行时会释放到本机缓存目录后再加载。默认构建会使用当前 .NET SDK 的宿主 RID；显式指定 `RuntimeIdentifier` 时，会优先支持常见的 Windows、Linux、Linux musl、macOS 和 FreeBSD x64/Arm64/Arm 目标。
 
 常用构建参数：
 
@@ -135,7 +135,7 @@ public sealed class MyPluginEntry : RustPluginBase
 
     public override string Id => "mslx-plugin-my-plugin";
     public override string Name => "My Plugin";
-    public override string Version => "1.1.1";
+    public override string Version => "1.2.0";
 
     protected override string RustLibraryName => "my_plugin_native";
 }
@@ -167,7 +167,7 @@ name = "my_plugin_native"
 crate-type = ["cdylib"]
 ```
 
-最终部署时，插件 DLL 和 Rust 原生库必须在同一个输出目录或可被系统动态库加载器找到。
+默认部署时只需要插件 DLL。若关闭了内嵌原生库，插件 DLL 和 Rust 原生库才需要在同一个输出目录，或位于系统动态库加载器能找到的位置。
 
 ## 文档导航
 

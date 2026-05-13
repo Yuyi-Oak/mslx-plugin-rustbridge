@@ -79,6 +79,29 @@ impl SdkBridge {
         Ok(())
     }
 
+    pub fn plugin_config_get_data_path(&self) -> Result<String, String> {
+        let v = self.call("plugin.config.get_data_path", json!({}))?;
+        Ok(v.as_str().unwrap_or("").to_string())
+    }
+
+    pub fn plugin_config_read(&self) -> Result<Value, String> {
+        self.call("plugin.config.read", json!({}))
+    }
+
+    pub fn plugin_config_write(&self, content: Value) -> Result<(), String> {
+        self.call("plugin.config.write", json!({ "content": content }))?;
+        Ok(())
+    }
+
+    pub fn plugin_config_read_key(&self, key: &str) -> Result<Value, String> {
+        self.call("plugin.config.read_key", json!({ "key": key }))
+    }
+
+    pub fn plugin_config_write_key(&self, key: &str, value: Value) -> Result<(), String> {
+        self.call("plugin.config.write_key", json!({ "key": key, "value": value }))?;
+        Ok(())
+    }
+
     pub fn config_servers_get_list(&self) -> Result<Value, String> {
         self.call("config.servers.get_list", json!({}))
     }

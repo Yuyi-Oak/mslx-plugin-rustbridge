@@ -41,7 +41,7 @@ samples/RustBridgeDemo/
 ```csharp
 public override string Id => "mslx-plugin-my-plugin";
 public override string Name => "My Plugin";
-public override string Version => "1.1.1";
+public override string Version => "1.2.0";
 ```
 
 插件 ID 建议符合 MSLX 约定：
@@ -146,10 +146,10 @@ dotnet nuget add source ./csharp/bin/Release -n rustbridge-local
 然后在你的插件工程中添加：
 
 ```xml
-<PackageReference Include="MSLX.Plugin.RustBridge" Version="1.1.1" />
+<PackageReference Include="MSLX.Plugin.RustBridge" Version="1.2.0" />
 ```
 
-从 `1.1.1` 开始，NuGet 包会默认导入构建规则。只要插件工程下有 `rust/Cargo.toml`，构建插件时会自动执行 `cargo build --release`，并把当前平台的原生库内嵌到插件 DLL。
+NuGet 包会默认导入构建规则。只要插件工程下有 `rust/Cargo.toml`，构建插件时会自动执行 `cargo build --release`，并把当前平台的原生库内嵌到插件 DLL。
 
 常用配置：
 
@@ -157,6 +157,86 @@ dotnet nuget add source ./csharp/bin/Release -n rustbridge-local
 <PropertyGroup>
   <RustBridgeRustLibName>my_plugin_native</RustBridgeRustLibName>
   <RustBridgeRustProjectDir>$(MSBuildProjectDirectory)/rust</RustBridgeRustProjectDir>
+</PropertyGroup>
+```
+
+默认情况下，RustBridge 会使用当前 .NET SDK 所在系统的 RID，例如 `linux-x64`、`win-x64`、`osx-arm64`。这种本机开发场景会执行普通的 `cargo build --release`，并从 `rust/target/release/` 读取产物。
+
+如果你要给指定系统打包，可以显式指定 RID：
+
+```bash
+dotnet build -c Release -r linux-arm64
+```
+
+或者在项目文件中固定：
+
+```xml
+<PropertyGroup>
+  <RustBridgeRuntimeIdentifier>linux-arm64</RustBridgeRuntimeIdentifier>
+</PropertyGroup>
+```
+
+显式指定 RID 后，默认规则会尽量把它转换成 Rust target triple，并执行类似下面的命令：
+
+```bash
+cargo build --release --target aarch64-unknown-linux-gnu
+```
+
+随后从 `rust/target/aarch64-unknown-linux-gnu/release/` 读取原生库，并以内嵌资源名 `RustBridge.Native.linux-arm64.libmy_plugin_native.so` 写进插件 DLL。
+
+跨平台构建前需要先安装对应 Rust target：
+
+```bash
+rustup target add aarch64-unknown-linux-gnu
+```
+
+有些目标还需要额外的链接器或系统库。比如在 Linux 上交叉构建 macOS 或 Windows 原生库，通常不能只靠 `rustup target add` 完成。
+
+常见 RID 和 Rust target 对应关系：
+
+| RID | Rust target |
+| --- | --- |
+| `win-x64` | `x86_64-pc-windows-msvc` |
+| `win-x86` | `i686-pc-windows-msvc` |
+| `win-arm64` | `aarch64-pc-windows-msvc` |
+| `linux-x64` | `x86_64-unknown-linux-gnu` |
+| `linux-arm64` | `aarch64-unknown-linux-gnu` |
+| `linux-arm` | `armv7-unknown-linux-gnueabihf` |
+| `linux-armel` | `arm-unknown-linux-gnueabi` |
+| `linux-musl-x64` / `alpine-x64` | `x86_64-unknown-linux-musl` |
+| `linux-musl-arm64` / `alpine-arm64` | `aarch64-unknown-linux-musl` |
+| `linux-musl-arm` / `alpine-arm` | `armv7-unknown-linux-musleabihf` |
+| `osx-x64` | `x86_64-apple-darwin` |
+| `osx-arm64` | `aarch64-apple-darwin` |
+| `freebsd-x64` | `x86_64-unknown-freebsd` |
+| `freebsd-arm64` | `aarch64-unknown-freebsd` |
+
+如果你的目标系统不在表里，可以手动指定 Rust target：
+
+```xml
+<PropertyGroup>
+  <RustBridgeRuntimeIdentifier>linux-riscv64</RustBridgeRuntimeIdentifier>
+  <RustBridgeRustTargetTriple>riscv64gc-unknown-linux-gnu</RustBridgeRustTargetTriple>
+</PropertyGroup>
+```
+
+如果要在 CI 里用 `cross` 构建 Linux、musl 或 FreeBSD 目标，可以只替换 Cargo 命令：
+
+```xml
+<PropertyGroup>
+  <RustBridgeCargoCommand>cross</RustBridgeCargoCommand>
+</PropertyGroup>
+```
+
+这样默认命令会从 `cargo build --release --target ...` 变成 `cross build --release --target ...`，产物路径仍然按 `rust/target/<rust-target-triple>/release/` 查找。
+
+如果你已经用自己的脚本把原生库构建好了，也可以关闭自动 Cargo 构建，只指定要内嵌的文件：
+
+```xml
+<PropertyGroup>
+  <RustBridgeBuildRust>false</RustBridgeBuildRust>
+  <RustBridgeRuntimeIdentifier>linux-arm64</RustBridgeRuntimeIdentifier>
+  <RustBridgeNativePath>$(MSBuildProjectDirectory)/native/linux-arm64/libmy_plugin_native.so</RustBridgeNativePath>
 </PropertyGroup>
 ```
 
@@ -190,7 +270,7 @@ public sealed class MyPluginEntry : RustPluginBase
 
     public override string Id => "mslx-plugin-my-plugin";
     public override string Name => "My Plugin";
-    public override string Version => "1.1.1";
+    public override string Version => "1.2.0";
     public override string Developer => "Your Name";
 
     protected override string RustLibraryName => "my_plugin_native";
@@ -241,7 +321,7 @@ Rust 收到：
 ```toml
 [package]
 name = "my-plugin-native"
-version = "1.1.1"
+version = "1.2.0"
 edition = "2024"
 
 [lib]

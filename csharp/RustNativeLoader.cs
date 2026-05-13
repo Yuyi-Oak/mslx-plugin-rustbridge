@@ -6,6 +6,7 @@ namespace MSLX.Plugin.RustBridge;
 public sealed class RustNativeLoader : IDisposable
 {
     private const string EmbeddedResourcePrefix = "RustBridge.Native";
+    private static readonly Lazy<bool> IsMuslLinuxRuntime = new(DetectMuslLinux);
 
     private readonly PluginInitDelegate _init;
     private readonly PluginUnloadDelegate _unload;
@@ -86,7 +87,11 @@ public sealed class RustNativeLoader : IDisposable
             if (resourceName is null)
                 continue;
 
-            var extractedPath = ExtractNativeResource(assembly, resourceName, platformFileName);
+            var extractedPath = ExtractNativeResource(
+                assembly,
+                resourceName.Value.Name,
+                resourceName.Value.RuntimeIdentifier,
+                platformFileName);
             if (NativeLibrary.TryLoad(extractedPath, out handle))
                 return true;
         }
@@ -111,24 +116,37 @@ public sealed class RustNativeLoader : IDisposable
             yield return entryAssembly;
     }
 
-    private static string? FindNativeResource(Assembly assembly, string platformFileName)
+    private static NativeResource? FindNativeResource(Assembly assembly, string platformFileName)
     {
         var resourceNames = assembly.GetManifestResourceNames();
-        var runtimeIdentifier = GetRuntimeIdentifier();
-        var runtimeSuffix = $".{runtimeIdentifier}.{platformFileName}";
-        var simpleSuffix = $".{EmbeddedResourcePrefix}.{platformFileName}";
 
-        return resourceNames.FirstOrDefault(name =>
-            name.Equals($"{EmbeddedResourcePrefix}.{runtimeIdentifier}.{platformFileName}", StringComparison.OrdinalIgnoreCase)
-            || name.EndsWith(runtimeSuffix, StringComparison.OrdinalIgnoreCase))
-            ?? resourceNames.FirstOrDefault(name =>
-                name.Equals($"{EmbeddedResourcePrefix}.{platformFileName}", StringComparison.OrdinalIgnoreCase)
-                || name.EndsWith(simpleSuffix, StringComparison.OrdinalIgnoreCase));
+        foreach (var runtimeIdentifier in GetRuntimeIdentifierCandidates())
+        {
+            var exactName = $"{EmbeddedResourcePrefix}.{runtimeIdentifier}.{platformFileName}";
+            var runtimeSuffix = $".{runtimeIdentifier}.{platformFileName}";
+            var resourceName = resourceNames.FirstOrDefault(name =>
+                name.Equals(exactName, StringComparison.OrdinalIgnoreCase)
+                || name.EndsWith(runtimeSuffix, StringComparison.OrdinalIgnoreCase));
+
+            if (resourceName is not null)
+                return new NativeResource(resourceName, runtimeIdentifier);
+        }
+
+        var simpleName = $"{EmbeddedResourcePrefix}.{platformFileName}";
+        var simpleSuffix = $".{EmbeddedResourcePrefix}.{platformFileName}";
+        var simpleResourceName = resourceNames.FirstOrDefault(name =>
+            name.Equals(simpleName, StringComparison.OrdinalIgnoreCase)
+            || name.EndsWith(simpleSuffix, StringComparison.OrdinalIgnoreCase));
+
+        return simpleResourceName is null
+            ? null
+            : new NativeResource(simpleResourceName, GetPortableRuntimeIdentifier());
     }
 
     private static string ExtractNativeResource(
         Assembly assembly,
         string resourceName,
+        string runtimeIdentifier,
         string platformFileName)
     {
         using var resourceStream = assembly.GetManifestResourceStream(resourceName)
@@ -138,7 +156,7 @@ public sealed class RustNativeLoader : IDisposable
             GetNativeCacheRoot(),
             SanitizePathPart(assembly.GetName().Name ?? "plugin"),
             assembly.ManifestModule.ModuleVersionId.ToString("N"),
-            GetRuntimeIdentifier());
+            runtimeIdentifier);
         Directory.CreateDirectory(targetDirectory);
 
         var targetPath = Path.Combine(targetDirectory, platformFileName);
@@ -205,13 +223,85 @@ public sealed class RustNativeLoader : IDisposable
             : $"lib{libraryName}.so";
     }
 
-    private static string GetRuntimeIdentifier()
+    private static IEnumerable<string> GetRuntimeIdentifierCandidates()
+    {
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var exactRuntimeIdentifier = RuntimeInformation.RuntimeIdentifier;
+
+        foreach (var runtimeIdentifier in GetOrderedRuntimeIdentifierCandidates(exactRuntimeIdentifier))
+            if (seen.Add(runtimeIdentifier))
+                yield return runtimeIdentifier;
+
+        var portableRuntimeIdentifier = GetPortableRuntimeIdentifier();
+        foreach (var runtimeIdentifier in GetOrderedRuntimeIdentifierCandidates(portableRuntimeIdentifier))
+            if (seen.Add(runtimeIdentifier))
+                yield return runtimeIdentifier;
+    }
+
+    private static IEnumerable<string> GetOrderedRuntimeIdentifierCandidates(string runtimeIdentifier)
+    {
+        if (string.IsNullOrWhiteSpace(runtimeIdentifier))
+            yield break;
+
+        var aliases = GetRuntimeIdentifierAliases(runtimeIdentifier).ToArray();
+        if (ShouldPreferRuntimeIdentifierAliases(runtimeIdentifier))
+            foreach (var alias in aliases)
+                yield return alias;
+
+        yield return runtimeIdentifier;
+
+        if (!ShouldPreferRuntimeIdentifierAliases(runtimeIdentifier))
+            foreach (var alias in aliases)
+                yield return alias;
+    }
+
+    private static IEnumerable<string> GetRuntimeIdentifierAliases(string runtimeIdentifier)
+    {
+        var architecture = GetRuntimeIdentifierArchitecture(runtimeIdentifier);
+        if (architecture is null)
+            yield break;
+
+        if (runtimeIdentifier.StartsWith("linux-musl-", StringComparison.OrdinalIgnoreCase))
+        {
+            yield return $"alpine-{architecture}";
+            yield break;
+        }
+
+        if (runtimeIdentifier.StartsWith("alpine-", StringComparison.OrdinalIgnoreCase))
+        {
+            yield return $"linux-musl-{architecture}";
+            yield break;
+        }
+
+        if (runtimeIdentifier.StartsWith("linux-", StringComparison.OrdinalIgnoreCase) && IsMuslLinuxRuntime.Value)
+        {
+            yield return $"linux-musl-{architecture}";
+            yield return $"alpine-{architecture}";
+        }
+    }
+
+    private static bool ShouldPreferRuntimeIdentifierAliases(string runtimeIdentifier)
+        => runtimeIdentifier.StartsWith("linux-", StringComparison.OrdinalIgnoreCase)
+           && !runtimeIdentifier.StartsWith("linux-musl-", StringComparison.OrdinalIgnoreCase)
+           && IsMuslLinuxRuntime.Value;
+
+    private static string? GetRuntimeIdentifierArchitecture(string runtimeIdentifier)
+    {
+        var separatorIndex = runtimeIdentifier.LastIndexOf('-');
+        return separatorIndex < 0 || separatorIndex == runtimeIdentifier.Length - 1
+            ? null
+            : runtimeIdentifier[(separatorIndex + 1)..];
+    }
+
+    private static string GetPortableRuntimeIdentifier()
     {
         var os = OperatingSystem.IsWindows()
             ? "win"
             : OperatingSystem.IsMacOS()
                 ? "osx"
-                : "linux";
+                : OperatingSystem.IsFreeBSD()
+                    ? "freebsd"
+                    : "linux";
 
         var arch = RuntimeInformation.ProcessArchitecture switch
         {
@@ -224,6 +314,34 @@ public sealed class RustNativeLoader : IDisposable
 
         return $"{os}-{arch}";
     }
+
+    private static bool DetectMuslLinux()
+    {
+        if (!OperatingSystem.IsLinux())
+            return false;
+
+        if (File.Exists("/etc/alpine-release"))
+            return true;
+
+        foreach (var directory in new[] { "/lib", "/usr/lib" })
+        {
+            try
+            {
+                if (Directory.Exists(directory) && Directory.EnumerateFiles(directory, "ld-musl-*.so.1").Any())
+                    return true;
+            }
+            catch (IOException)
+            {
+            }
+            catch (UnauthorizedAccessException)
+            {
+            }
+        }
+
+        return false;
+    }
+
+    private readonly record struct NativeResource(string Name, string RuntimeIdentifier);
 
     ~RustNativeLoader() => Dispose();
 

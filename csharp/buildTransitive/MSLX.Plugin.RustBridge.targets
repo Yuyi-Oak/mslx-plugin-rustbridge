@@ -5,19 +5,51 @@
     <RustBridgeRustProjectDir Condition="'$(RustBridgeRustProjectDir)' == ''">$(MSBuildProjectDirectory)/rust</RustBridgeRustProjectDir>
     <RustBridgeRustLibName Condition="'$(RustBridgeRustLibName)' == '' and '$(RustLibName)' != ''">$(RustLibName)</RustBridgeRustLibName>
     <RustBridgeRustLibName Condition="'$(RustBridgeRustLibName)' == ''">mslx_plugin_rustbridge</RustBridgeRustLibName>
+    <RustBridgeCargoCommand Condition="'$(RustBridgeCargoCommand)' == ''">cargo</RustBridgeCargoCommand>
     <RustBridgeCargoProfile Condition="'$(RustBridgeCargoProfile)' == ''">release</RustBridgeCargoProfile>
     <RustBridgeCargoBuildArgs Condition="'$(RustBridgeCargoBuildArgs)' == '' and '$(RustBridgeCargoProfile)' == 'release'">--release</RustBridgeCargoBuildArgs>
     <RustBridgeCargoBuildArgs Condition="'$(RustBridgeCargoBuildArgs)' == ''"></RustBridgeCargoBuildArgs>
-    <RustBridgeRustBuildCommand Condition="'$(RustBridgeRustBuildCommand)' == ''">cargo build $(RustBridgeCargoBuildArgs)</RustBridgeRustBuildCommand>
+    <_RustBridgeRuntimeIdentifierWasSet Condition="'$(RustBridgeRuntimeIdentifier)' != '' or '$(RuntimeIdentifier)' != ''">true</_RustBridgeRuntimeIdentifierWasSet>
+    <_RustBridgeRuntimeIdentifierWasSet Condition="'$(_RustBridgeRuntimeIdentifierWasSet)' == ''">false</_RustBridgeRuntimeIdentifierWasSet>
+    <_RustBridgeNativePathWasSet Condition="'$(RustBridgeNativePath)' != ''">true</_RustBridgeNativePathWasSet>
+    <_RustBridgeNativePathWasSet Condition="'$(_RustBridgeNativePathWasSet)' == ''">false</_RustBridgeNativePathWasSet>
+    <_RustBridgeRustTargetTripleWasSet Condition="'$(RustBridgeRustTargetTriple)' != ''">true</_RustBridgeRustTargetTripleWasSet>
+    <_RustBridgeRustTargetTripleWasSet Condition="'$(_RustBridgeRustTargetTripleWasSet)' == ''">false</_RustBridgeRustTargetTripleWasSet>
+    <RustBridgeHostRuntimeIdentifier Condition="'$(RustBridgeHostRuntimeIdentifier)' == '' and '$(NETCoreSdkRuntimeIdentifier)' != ''">$(NETCoreSdkRuntimeIdentifier)</RustBridgeHostRuntimeIdentifier>
+    <RustBridgeHostRuntimeIdentifier Condition="'$(RustBridgeHostRuntimeIdentifier)' == '' and $([MSBuild]::IsOSPlatform('Windows'))">win-x64</RustBridgeHostRuntimeIdentifier>
+    <RustBridgeHostRuntimeIdentifier Condition="'$(RustBridgeHostRuntimeIdentifier)' == '' and $([MSBuild]::IsOSPlatform('Linux'))">linux-x64</RustBridgeHostRuntimeIdentifier>
+    <RustBridgeHostRuntimeIdentifier Condition="'$(RustBridgeHostRuntimeIdentifier)' == '' and $([MSBuild]::IsOSPlatform('OSX'))">osx-x64</RustBridgeHostRuntimeIdentifier>
     <RustBridgeRuntimeIdentifier Condition="'$(RustBridgeRuntimeIdentifier)' == '' and '$(RuntimeIdentifier)' != ''">$(RuntimeIdentifier)</RustBridgeRuntimeIdentifier>
-    <RustBridgeRuntimeIdentifier Condition="'$(RustBridgeRuntimeIdentifier)' == '' and $([MSBuild]::IsOSPlatform('Windows'))">win-x64</RustBridgeRuntimeIdentifier>
-    <RustBridgeRuntimeIdentifier Condition="'$(RustBridgeRuntimeIdentifier)' == '' and $([MSBuild]::IsOSPlatform('Linux'))">linux-x64</RustBridgeRuntimeIdentifier>
-    <RustBridgeRuntimeIdentifier Condition="'$(RustBridgeRuntimeIdentifier)' == '' and $([MSBuild]::IsOSPlatform('OSX'))">osx-x64</RustBridgeRuntimeIdentifier>
+    <RustBridgeRuntimeIdentifier Condition="'$(RustBridgeRuntimeIdentifier)' == ''">$(RustBridgeHostRuntimeIdentifier)</RustBridgeRuntimeIdentifier>
+    <RustBridgeRustTargetTriple Condition="'$(RustBridgeRustTargetTriple)' == '' and $([System.String]::Copy('$(RustBridgeRuntimeIdentifier)').StartsWith('win')) and $([System.String]::Copy('$(RustBridgeRuntimeIdentifier)').EndsWith('-x64'))">x86_64-pc-windows-msvc</RustBridgeRustTargetTriple>
+    <RustBridgeRustTargetTriple Condition="'$(RustBridgeRustTargetTriple)' == '' and $([System.String]::Copy('$(RustBridgeRuntimeIdentifier)').StartsWith('win')) and $([System.String]::Copy('$(RustBridgeRuntimeIdentifier)').EndsWith('-x86'))">i686-pc-windows-msvc</RustBridgeRustTargetTriple>
+    <RustBridgeRustTargetTriple Condition="'$(RustBridgeRustTargetTriple)' == '' and $([System.String]::Copy('$(RustBridgeRuntimeIdentifier)').StartsWith('win')) and $([System.String]::Copy('$(RustBridgeRuntimeIdentifier)').EndsWith('-arm64'))">aarch64-pc-windows-msvc</RustBridgeRustTargetTriple>
+    <RustBridgeRustTargetTriple Condition="'$(RustBridgeRustTargetTriple)' == '' and $([System.String]::Copy('$(RustBridgeRuntimeIdentifier)').StartsWith('osx')) and $([System.String]::Copy('$(RustBridgeRuntimeIdentifier)').EndsWith('-x64'))">x86_64-apple-darwin</RustBridgeRustTargetTriple>
+    <RustBridgeRustTargetTriple Condition="'$(RustBridgeRustTargetTriple)' == '' and $([System.String]::Copy('$(RustBridgeRuntimeIdentifier)').StartsWith('osx')) and $([System.String]::Copy('$(RustBridgeRuntimeIdentifier)').EndsWith('-arm64'))">aarch64-apple-darwin</RustBridgeRustTargetTriple>
+    <RustBridgeRustTargetTriple Condition="'$(RustBridgeRustTargetTriple)' == '' and ($([System.String]::Copy('$(RustBridgeRuntimeIdentifier)').StartsWith('linux-musl')) or $([System.String]::Copy('$(RustBridgeRuntimeIdentifier)').StartsWith('alpine'))) and $([System.String]::Copy('$(RustBridgeRuntimeIdentifier)').EndsWith('-x64'))">x86_64-unknown-linux-musl</RustBridgeRustTargetTriple>
+    <RustBridgeRustTargetTriple Condition="'$(RustBridgeRustTargetTriple)' == '' and ($([System.String]::Copy('$(RustBridgeRuntimeIdentifier)').StartsWith('linux-musl')) or $([System.String]::Copy('$(RustBridgeRuntimeIdentifier)').StartsWith('alpine'))) and $([System.String]::Copy('$(RustBridgeRuntimeIdentifier)').EndsWith('-arm64'))">aarch64-unknown-linux-musl</RustBridgeRustTargetTriple>
+    <RustBridgeRustTargetTriple Condition="'$(RustBridgeRustTargetTriple)' == '' and ($([System.String]::Copy('$(RustBridgeRuntimeIdentifier)').StartsWith('linux-musl')) or $([System.String]::Copy('$(RustBridgeRuntimeIdentifier)').StartsWith('alpine'))) and $([System.String]::Copy('$(RustBridgeRuntimeIdentifier)').EndsWith('-arm'))">armv7-unknown-linux-musleabihf</RustBridgeRustTargetTriple>
+    <RustBridgeRustTargetTriple Condition="'$(RustBridgeRustTargetTriple)' == '' and $([System.String]::Copy('$(RustBridgeRuntimeIdentifier)').StartsWith('linux')) and $([System.String]::Copy('$(RustBridgeRuntimeIdentifier)').EndsWith('-x64'))">x86_64-unknown-linux-gnu</RustBridgeRustTargetTriple>
+    <RustBridgeRustTargetTriple Condition="'$(RustBridgeRustTargetTriple)' == '' and $([System.String]::Copy('$(RustBridgeRuntimeIdentifier)').StartsWith('linux')) and $([System.String]::Copy('$(RustBridgeRuntimeIdentifier)').EndsWith('-arm64'))">aarch64-unknown-linux-gnu</RustBridgeRustTargetTriple>
+    <RustBridgeRustTargetTriple Condition="'$(RustBridgeRustTargetTriple)' == '' and $([System.String]::Copy('$(RustBridgeRuntimeIdentifier)').StartsWith('linux')) and $([System.String]::Copy('$(RustBridgeRuntimeIdentifier)').EndsWith('-armel'))">arm-unknown-linux-gnueabi</RustBridgeRustTargetTriple>
+    <RustBridgeRustTargetTriple Condition="'$(RustBridgeRustTargetTriple)' == '' and $([System.String]::Copy('$(RustBridgeRuntimeIdentifier)').StartsWith('linux')) and $([System.String]::Copy('$(RustBridgeRuntimeIdentifier)').EndsWith('-arm'))">armv7-unknown-linux-gnueabihf</RustBridgeRustTargetTriple>
+    <RustBridgeRustTargetTriple Condition="'$(RustBridgeRustTargetTriple)' == '' and $([System.String]::Copy('$(RustBridgeRuntimeIdentifier)').StartsWith('freebsd')) and $([System.String]::Copy('$(RustBridgeRuntimeIdentifier)').EndsWith('-x64'))">x86_64-unknown-freebsd</RustBridgeRustTargetTriple>
+    <RustBridgeRustTargetTriple Condition="'$(RustBridgeRustTargetTriple)' == '' and $([System.String]::Copy('$(RustBridgeRuntimeIdentifier)').StartsWith('freebsd')) and $([System.String]::Copy('$(RustBridgeRuntimeIdentifier)').EndsWith('-arm64'))">aarch64-unknown-freebsd</RustBridgeRustTargetTriple>
+    <RustBridgeUseCargoTarget Condition="'$(RustBridgeUseCargoTarget)' == '' and '$(_RustBridgeRuntimeIdentifierWasSet)' == 'true'">true</RustBridgeUseCargoTarget>
+    <RustBridgeUseCargoTarget Condition="'$(RustBridgeUseCargoTarget)' == '' and '$(_RustBridgeRustTargetTripleWasSet)' == 'true'">true</RustBridgeUseCargoTarget>
+    <RustBridgeUseCargoTarget Condition="'$(RustBridgeUseCargoTarget)' == ''">false</RustBridgeUseCargoTarget>
+    <RustBridgeCargoTargetArgs Condition="'$(RustBridgeCargoTargetArgs)' == '' and '$(RustBridgeUseCargoTarget)' == 'true' and '$(RustBridgeRustTargetTriple)' != ''">--target $(RustBridgeRustTargetTriple)</RustBridgeCargoTargetArgs>
+    <RustBridgeCargoTargetArgs Condition="'$(RustBridgeCargoTargetArgs)' == ''"></RustBridgeCargoTargetArgs>
+    <RustBridgeRustBuildCommand Condition="'$(RustBridgeRustBuildCommand)' == ''">$(RustBridgeCargoCommand) build $(RustBridgeCargoBuildArgs) $(RustBridgeCargoTargetArgs)</RustBridgeRustBuildCommand>
     <RustBridgeNativeFileName Condition="'$(RustBridgeNativeFileName)' == '' and $([System.String]::Copy('$(RustBridgeRuntimeIdentifier)').StartsWith('win'))">$(RustBridgeRustLibName).dll</RustBridgeNativeFileName>
     <RustBridgeNativeFileName Condition="'$(RustBridgeNativeFileName)' == '' and $([System.String]::Copy('$(RustBridgeRuntimeIdentifier)').StartsWith('osx'))">lib$(RustBridgeRustLibName).dylib</RustBridgeNativeFileName>
     <RustBridgeNativeFileName Condition="'$(RustBridgeNativeFileName)' == ''">lib$(RustBridgeRustLibName).so</RustBridgeNativeFileName>
+    <RustBridgeNativePath Condition="'$(RustBridgeNativePath)' == '' and '$(RustBridgeCargoTargetArgs)' != ''">$(RustBridgeRustProjectDir)/target/$(RustBridgeRustTargetTriple)/$(RustBridgeCargoProfile)/$(RustBridgeNativeFileName)</RustBridgeNativePath>
     <RustBridgeNativePath Condition="'$(RustBridgeNativePath)' == ''">$(RustBridgeRustProjectDir)/target/$(RustBridgeCargoProfile)/$(RustBridgeNativeFileName)</RustBridgeNativePath>
   </PropertyGroup>
+
+  <Import Project="$(RustBridgeNativeResourcesProps)"
+          Condition="'$(RustBridgeNativeResourcesProps)' != '' and Exists('$(RustBridgeNativeResourcesProps)')" />
 
   <ItemGroup Condition="'$(RustBridgeEmbedNativeLibrary)' == 'true' and Exists('$(RustBridgeRustProjectDir)/Cargo.toml')">
     <Content Remove="$(RustBridgeRustProjectDir)/**" />
@@ -25,8 +57,15 @@
     <None Include="$(RustBridgeRustProjectDir)/**" Exclude="$(RustBridgeRustProjectDir)/target/**">
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
     </None>
-    <EmbeddedResource Include="$(RustBridgeNativePath)" Condition="'$(RustBridgeNativeFileName)' != ''">
-      <LogicalName>RustBridge.Native.$(RustBridgeRuntimeIdentifier).$(RustBridgeNativeFileName)</LogicalName>
+    <_RustBridgeNativeResource Include="$(RustBridgeNativePath)"
+                               Condition="'@(RustBridgeNativeResource)' == '' and '$(RustBridgeNativeFileName)' != ''">
+      <RuntimeIdentifier>$(RustBridgeRuntimeIdentifier)</RuntimeIdentifier>
+      <NativeFileName>$(RustBridgeNativeFileName)</NativeFileName>
+    </_RustBridgeNativeResource>
+    <_RustBridgeNativeResource Include="@(RustBridgeNativeResource)"
+                               Condition="'@(RustBridgeNativeResource)' != ''" />
+    <EmbeddedResource Include="@(_RustBridgeNativeResource)">
+      <LogicalName>RustBridge.Native.%(RuntimeIdentifier).%(NativeFileName)</LogicalName>
     </EmbeddedResource>
   </ItemGroup>
 
@@ -42,9 +81,17 @@
           Condition="'$(RustBridgeEmbedNativeLibrary)' == 'true' and Exists('$(RustBridgeRustProjectDir)/Cargo.toml')">
     <Error Condition="'$(RustBridgeRuntimeIdentifier)' == ''"
            Text="RustBridgeRuntimeIdentifier could not be resolved." />
-    <Error Condition="'$(RustBridgeNativeFileName)' == ''"
+    <Error Condition="'@(RustBridgeNativeResource)' == '' and '$(RustBridgeNativeFileName)' == ''"
            Text="Unsupported platform for RustBridge native library embedding." />
-    <Error Condition="!Exists('$(RustBridgeNativePath)')"
+    <Error Condition="'@(RustBridgeNativeResource)' == '' and '$(RustBridgeUseCargoTarget)' == 'true' and '$(RustBridgeRustTargetTriple)' == '' and '$(_RustBridgeNativePathWasSet)' != 'true'"
+           Text="RustBridge does not know the Rust target triple for '$(RustBridgeRuntimeIdentifier)'. Set RustBridgeRustTargetTriple or RustBridgeNativePath." />
+    <Error Condition="'@(RustBridgeNativeResource)' == '' and !Exists('$(RustBridgeNativePath)')"
            Text="RustBridge native library was not found: $(RustBridgeNativePath)" />
+    <Error Condition="'@(RustBridgeNativeResource)' != '' and '%(RustBridgeNativeResource.RuntimeIdentifier)' == ''"
+           Text="RustBridgeNativeResource is missing RuntimeIdentifier metadata: %(RustBridgeNativeResource.Identity)" />
+    <Error Condition="'@(RustBridgeNativeResource)' != '' and '%(RustBridgeNativeResource.NativeFileName)' == ''"
+           Text="RustBridgeNativeResource is missing NativeFileName metadata: %(RustBridgeNativeResource.Identity)" />
+    <Error Condition="'@(RustBridgeNativeResource)' != '' and !Exists('%(RustBridgeNativeResource.Identity)')"
+           Text="RustBridge native library was not found: %(RustBridgeNativeResource.Identity)" />
   </Target>
 </Project>

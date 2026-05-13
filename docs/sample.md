@@ -135,9 +135,9 @@ Rust 会把收到的方法、路径、查询字符串和 body 返回，适合测
 
 ## 构建逻辑
 
-示例 `.csproj` 中包含三个关键目标。
+示例 `.csproj` 会导入 RustBridge 的默认构建规则，主要包含三个步骤。
 
-### BuildRust
+### RustBridgeBuildRustNative
 
 执行：
 
@@ -151,7 +151,9 @@ cargo build --release
 samples/RustBridgeDemo/rust
 ```
 
-### PrepareRustNativeResource
+如果构建命令显式指定了 RID，例如 `dotnet build -c Release -r osx-arm64`，默认规则会在可识别时追加 Rust target，例如 `--target aarch64-apple-darwin`。
+
+### RustBridgePrepareNativeResource
 
 把 Rust 产物作为内嵌资源加入插件 DLL。
 
@@ -171,6 +173,12 @@ macOS：
 
 ```text
 rust/target/release/libmslx_plugin_rustbridge.dylib
+```
+
+显式指定 RID 并启用 Rust target 时，产物路径会变成：
+
+```text
+rust/target/<rust-target-triple>/release/<native-file>
 ```
 
 ### MergeDependencies

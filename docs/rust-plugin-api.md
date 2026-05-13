@@ -20,6 +20,18 @@ Windows: mslx_plugin_rustbridge.dll
 macOS:   libmslx_plugin_rustbridge.dylib
 ```
 
+内嵌到插件 DLL 时，资源名会带上 RID：
+
+```text
+RustBridge.Native.linux-x64.libmslx_plugin_rustbridge.so
+RustBridge.Native.linux-arm64.libmslx_plugin_rustbridge.so
+RustBridge.Native.linux-musl-x64.libmslx_plugin_rustbridge.so
+RustBridge.Native.win-arm64.mslx_plugin_rustbridge.dll
+RustBridge.Native.osx-arm64.libmslx_plugin_rustbridge.dylib
+```
+
+如果构建时显式指定 RID，RustBridge 会把常见 RID 转成 Rust target triple，例如 `linux-arm64` 对应 `aarch64-unknown-linux-gnu`，`osx-arm64` 对应 `aarch64-apple-darwin`。跨平台构建前需要先安装 Rust target，并准备好目标平台所需的链接器和系统库。
+
 如果你改了库名，需要同时改三处：
 
 - C# 插件入口里的 `RustLibraryName`。
@@ -307,6 +319,11 @@ MSLX.Config.Servers.GetServerList()
 | `config_main_read()` | `MSLX.Config.Main.ReadConfig()` |
 | `config_main_read_key(key)` | `MSLX.Config.Main.ReadConfigKey(key)` |
 | `config_main_write_key(key, value)` | `MSLX.Config.Main.WriteConfigKey(key, value)` |
+| `plugin_config_get_data_path()` | `this.Config().GetDataPath()` |
+| `plugin_config_read()` | `this.Config().ReadConfig()` |
+| `plugin_config_write(content)` | `this.Config().WriteConfig(content)` |
+| `plugin_config_read_key(key)` | `this.Config().ReadConfigKey(key)` |
+| `plugin_config_write_key(key, value)` | `this.Config().WriteConfigKey(key, value)` |
 | `config_servers_get_list()` | `MSLX.Config.Servers.GetServerList()` |
 | `config_servers_get_server(id)` | `MSLX.Config.Servers.GetServer(id)` |
 | `config_servers_delete_server(id, delete_files)` | `MSLX.Config.Servers.DeleteServer(id, delete_files)` |
@@ -314,6 +331,8 @@ MSLX.Config.Servers.GetServerList()
 | `config_users_get_by_api_key(key)` | `MSLX.Config.Users.GetUserByApiKey(key)` |
 | `config_users_get_by_username(username)` | `MSLX.Config.Users.GetUserByUsername(username)` |
 | `get_appdata_path()` | `MSLX.Config.GetAppDataPath()` |
+
+`plugin_config_*` 是 MSLX SDK 1.4.3+ 的插件级配置接口。它读写的是当前插件自己的配置文件和数据目录；`config_main_*` 读写的是 MSLX 主配置，不建议用来保存插件自己的业务数据。
 
 ## 增加新的 SDK 方法
 
